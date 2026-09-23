@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 120">
+  <!-- ferrule (metal) at the top -->
+  <rect x="10" y="10" width="10" height="8" fill="#9ca3af"/>
+  <!-- pencil body -->
+  <rect x="10" y="18" width="10" height="84" rx="3" fill="#fbbf24" stroke="#92400e"/>
+  <!-- tip at the bottom (smaller, attached to body) -->
+  <polygon points="15,112 9,102 21,102" fill="#fef3c7" stroke="#92400e"/>
+</svg>
+

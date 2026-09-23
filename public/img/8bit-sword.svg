@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 48">
+  <!-- longer pixel sword -->
+  <path d="M20 2h2v2h2v2h2v2h2v2h2v2h-2v2h-2v2h-2v2h-2v2h-2v-2h-2v-2h-2v-2h-2V8h2V6h2V4h2z" fill="#93c5fd" stroke="#0f172a" stroke-width="1"/>
+  <rect x="14" y="28" width="12" height="3" fill="#f59e0b" stroke="#0f172a"/>
+  <rect x="12" y="31" width="16" height="3" fill="#f59e0b" stroke="#0f172a"/>
+  <rect x="18" y="34" width="4" height="12" fill="#0f172a"/>
+</svg>
+
