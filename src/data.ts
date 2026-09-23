@@ -134,10 +134,10 @@ export const PROJECTS: Project[] = [
 ]
 
 export const SOCIALS: Social = {
-  email: "natharaihans@gmail.com",
-  github: "https://github.com/RaihanSnh",
-  linkedin: "https://www.linkedin.com/in/raihansatyanathahamzah/",
-  instagram: "https://instagram.com/raihansnh",
+  email: "andrahilmy558@gmail.com",
+  github: "https://github.com/hilmyah",
+  linkedin: "https://www.linkedin.com/in/hilmyah/",
+  instagram: "https://www.instagram.com/hlmydr/",
 }
 
 
