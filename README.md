@@ -1,8 +1,21 @@
-## HilmyAH Portfolio
+# Hilmy Adhyandra Hamzah — Portfolio
 
-Stack: React + TypeScript + Vite + Tailwind CSS + shadcn-style UI.
+Personal portfolio website for Hilmy Adhyandra Hamzah.
 
-### Quick start
-1. Install deps: `npm install`
-2. Start dev server: `npm run dev`
-3. Build for production: `npm run build` then `npm run preview`
+The portfolio focuses on infrastructure, Linux systems,
+self-hosting, networking, automation, and open-source
+technologies.
+
+## Tech Stack
+
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- Lucide React
+
+## Development
+
+```bash
+npm install
+npm run dev

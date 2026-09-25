@@ -11,6 +11,9 @@ const groups: Record<string, Group> = PROJECTS.reduce((acc, p) => {
 }, {} as Record<string, Group>)
 
 export function Projects() {
+  if (PROJECTS.length === 0) {
+    return null
+  }
   const [openFolder, setOpenFolder] = React.useState<string | null>(null)
   const folderNames = Object.keys(groups)
   const noteClasses = [

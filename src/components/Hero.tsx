@@ -180,7 +180,7 @@ export function Hero() {
         <div className="relative" ref={colRef}>
           <div
             className="relative z-10 mx-auto aspect-[7/9] w-72 md:w-80 rounded-[12px] border border-border bg-muted overflow-hidden shadow-[0_25px_50px_-12px_rgb(0_0_0_/_45%)] rotate-[-2deg]"
-            aria-label="Portrait placeholder"
+            aria-label="Portrait of Hilmy Adhyandra Hamzah"
             ref={cardRef}
           >
             <img

@@ -37,36 +37,17 @@ export type Social = {
 
 export const PROFILE: Profile = {
   name: "Hilmy Adhyandra Hamzah",
-  role: "Software Engineer",
-  tagline: "Caffeine-fueled Coder",
+  role: "Infrastructure & Systems",
+  tagline: "Linux • Self-hosting • Networking • Automation",
   photo: {
     src: "/placeholder/me.jpeg",
     width: 420,
     height: 540,
-    alt: "me",
+    alt: "Hilmy Adhyandra Hamzah",
   },
 }
 
-export const SONGS: Song[] = [
-  {
-    id: 1,
-    title: "Why Are Sundays So Depressing?",
-    artist: "Artist Name",
-    src: "/audio/song1.mp3",
-    albumArt: "/img/album1.svg",
-    length: "3:45",
-    lyric: "you're hidin in the background but you want to be found",
-  },
-  {
-    id: 2,
-    title: "Song ",
-    artist: "testapajanamaartistlaguidk",
-    src: "/audio/song1.mp3",
-    albumArt: "/img/album1.svg",
-    length: "3:45",
-    lyric: "you're hidin in the background but you want to be found",
-  },
-]
+export const SONGS: Song[] = []
 
 export const TOOLS: Tool[] = [
   { name: "Linux", icon: "/icons/linux.svg" },
@@ -76,7 +57,7 @@ export const TOOLS: Tool[] = [
   { name: "Kali Linux", icon: "/icons/kalilinux.svg" },
   { name: "Fedora", icon: "/icons/fedora.svg" },
   { name: "Windows", icon: "/icons/windows.svg" },
-  { name: "Visual Studio Code", icon: "/icons/vscode.svg" },
+  { name: "VS Code", icon: "/icons/vscode.svg" },
   { name: "Git", icon: "/icons/git.svg" },
   { name: "Github", icon: "/icons/github.svg" },
   { name: "Docker", icon: "/icons/docker.svg" },
@@ -92,46 +73,7 @@ export const TOOLS: Tool[] = [
   { name: "Plesk", icon: "/icons/plesk.svg" },
 ]
 
-export const PROJECTS: Project[] = [
-  {
-    id: "proj-1",
-    folder: "JavaScript",
-    name: "Random Picker",
-    thumbnail: "/img/proj1.svg",
-    description: "Random Picker web app. Built with native JavaScript and Tailwind CSS. Add multiple names, shuffle, and pick winners with a playful animation.",
-    tech: ["JavaScript", "Tailwind"],
-    repo: "https://github.com/RaihanSnh/random-picker",
-    demo: "https://raihansnh.github.io/random-picker/",
-  },
-  {
-    id: "proj-2",
-    folder: "TypeScript",
-    name: "ToDo-List",
-    thumbnail: "/img/proj2.svg",
-    description: "Task manager with categories and filters. Clean TypeScript structure with components and state management.",
-    tech: ["TypeScript", "Tailwind"],
-    repo: "https://github.com/RaihanSnh/ToDo-List",
-  },
-  {
-    id: "proj-3",
-    folder: "JavaScript",
-    name: "Invisible TicTacToe",
-    thumbnail: "/img/proj3.svg",
-    description: "A twist on TicTacToe, the board fades as you play. Fun logic and DOM updates with classic JS.",
-    tech: ["JavaScript"],
-    repo: "https://github.com/RaihanSnh/Invisible-TicTacToe",
-    demo: "https://raihansnh.github.io/Invisible-TicTacToe/",
-  },
-  {
-    id: "proj-4",
-    folder: "PHP",
-    name: "ujianify",
-    thumbnail: "/img/proj4.svg",
-    description: "Simple exam/quiz functionality. Server-side rendering and basic CRUD powered by PHP.",
-    tech: ["PHP"],
-    repo: "https://github.com/RaihanSnh/ujianify",
-  },
-]
+export const PROJECTS: Project[] = []
 
 export const SOCIALS: Social = {
   email: "andrahilmy558@gmail.com",

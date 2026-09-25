@@ -84,6 +84,10 @@ export function MusicPlayer({ minimal = false }: PlayerProps) {
 
   const currentSong = SONGS[state.currentIndex]
 
+  if (!currentSong) {
+    return null
+  }
+  
   React.useEffect(() => {
     if (!audioRef.current) return
     audioRef.current.volume = state.volume
