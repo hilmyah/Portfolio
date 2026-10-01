@@ -19,13 +19,20 @@ export type Tool = { name: string; icon: string }
 
 export type Project = {
   id: string
-  folder: string
   name: string
-  thumbnail: string
   description: string
+  tags: string[]
   tech: string[]
+  thumbnail?: string
+  role?: string
+  status?: string
   repo?: string
   demo?: string
+}
+
+export type TerminalCommand = {
+  command: string
+  description: string
 }
 
 export type Social = {
@@ -73,7 +80,22 @@ export const TOOLS: Tool[] = [
   { name: "Plesk", icon: "/icons/plesk.svg" },
 ]
 
-export const PROJECTS: Project[] = []
+export const PROJECTS: Project[] = [
+  {
+    id: "1",
+    name: "Bedrock Server",
+    description: "Project description.",
+    tags: ["linux", "self-hosting"],
+    tech: ["Linux", "Bash"],
+    role: "Infrastructure",
+    status: "Active",
+    repo: "https://github.com/hilmyah/bedrock-server",
+  },
+]
+
+export const PROJECT_TAGS = Array.from(
+  new Set(PROJECTS.flatMap((project) => project.tags))
+).sort()
 
 export const SOCIALS: Social = {
   email: "andrahilmy558@gmail.com",
@@ -82,4 +104,15 @@ export const SOCIALS: Social = {
   instagram: "https://www.instagram.com/hlmydr/",
 }
 
-
+export const TERMINAL_COMMANDS: TerminalCommand[] = [
+  { command: "help", description: "Show available commands" },
+  { command: "about", description: "About Hilmy" },
+  { command: "projects", description: "List projects" },
+  { command: "project", description: "Show project details" },
+  { command: "tags", description: "List project tags" },
+  { command: "skills", description: "Show tools and technologies" },
+  { command: "social", description: "Show social links" },
+  { command: "contact", description: "Show contact information" },
+  { command: "clear", description: "Clear terminal" },
+  { command: "neofetch", description: "Show portfolio information" },
+]
