@@ -1,22 +1,21 @@
 import * as React from "react"
 import { Button } from "@/components/ui/button"
 import { Moon, Sun, Menu } from "lucide-react"
+import { prefersReducedMotion, toggleTheme, useTheme } from "@/lib/theme"
 
 export function Navbar() {
   const [open, setOpen] = React.useState(false)
-  const [isDark, setIsDark] = React.useState(false)
+  const isDark = useTheme() === "dark"
   const wipingRef = React.useRef(false)
-
-  React.useEffect(() => {
-    const root = document.documentElement
-    if (isDark) root.classList.add("dark")
-    else root.classList.remove("dark")
-  }, [isDark])
 
   const linkClass = "px-3 py-2 rounded-md hover:bg-accent/60"
 
   const toggleThemeWithWipe = () => {
     if (wipingRef.current) return
+    if (prefersReducedMotion()) {
+      toggleTheme()
+      return
+    }
     wipingRef.current = true
     // Stacked page flip container
     const container = document.createElement('div')
@@ -40,7 +39,7 @@ export function Navbar() {
 
     // Flip theme around the middle sheet timing
     const midTime = 80 * Math.floor(sheetCount / 2) + 220
-    const themeTimer = window.setTimeout(() => { setIsDark(v => !v) }, midTime)
+    const themeTimer = window.setTimeout(() => { toggleTheme() }, midTime)
 
     // Cleanup after the last animation ends
     const total = 80 * (sheetCount - 1) + 1500
@@ -66,7 +65,7 @@ export function Navbar() {
     <header className="sticky top-2 z-50 mx-2 rounded-3xl border border-border overflow-hidden backdrop-blur supports-[backdrop-filter]:bg-background/70 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.35)]">
       <nav className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
         <a href="#hero" className="flex items-center gap-2 font-black tracking-tight text-xl md:text-2xl" aria-label="Go to top" onClick={(e) => { e.preventDefault(); smoothScrollTo('#hero') }}>
-          <img src="/icons/logo-temp.svg" alt="Hilmy logo" className="h-7 w-7 rounded-sm border border-border bg-card" />
+          <img src="/icons/logo-temp.png" width={28} height={28} alt="Hilmy logo" className="h-7 w-7 rounded-sm border border-border bg-card" />
           Hilmy.
         </a>
         <div className="hidden md:flex items-center gap-1">

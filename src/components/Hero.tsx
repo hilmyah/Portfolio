@@ -191,7 +191,9 @@ export function Hero() {
               height={PROFILE.photo.height}
               alt={PROFILE.photo.alt}
               className="h-full w-full object-cover"
-              loading="lazy"
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
             />
             <div className="absolute inset-0 bg-[url('/placeholder/paper-texture.svg')] opacity-20 mix-blend-overlay" />
             <div className="absolute left-2 top-2 rotate-6 bg-yellow-200 px-3 py-1 text-sm shadow border border-yellow-300 text-black">hello!</div>

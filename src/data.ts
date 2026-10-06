@@ -48,7 +48,7 @@ export const PROFILE: Profile = {
   role: "Infrastructure & Systems",
   tagline: "Linux • Self-hosting • Networking • Automation",
   photo: {
-    src: "/placeholder/me.jpeg",
+    src: "/placeholder/me.webp",
     width: 420,
     height: 540,
     alt: "Hilmy Adhyandra Hamzah",
@@ -180,8 +180,10 @@ export const TERMINAL_COMMANDS: TerminalCommand[] = [
   { command: "about", description: "About Hilmy" },
   { command: "projects", description: "List projects" },
   { command: "project", description: "Show project details" },
+  { command: "open", description: "Open a project repository" },
   { command: "skills", description: "Show tools and technologies" },
   { command: "contact", description: "Show contact information" },
+  { command: "theme", description: "Switch light or dark theme" },
   { command: "clear", description: "Clear terminal" },
   { command: "neofetch", description: "Show portfolio information" },
 ]

@@ -8,6 +8,8 @@ import {
   TOOLS,
 } from "@/data"
 import type { Project } from "@/data"
+import { getTheme, setTheme } from "@/lib/theme"
+import type { Theme } from "@/lib/theme"
 
 export type Tone = "default" | "muted" | "accent" | "success" | "error"
 
@@ -70,7 +72,11 @@ const handlers: Record<string, Handler> = {
         line("Available commands:", "accent"),
         ...TERMINAL_COMMANDS.map((c) => line(`  ${pad(c.command, width)}${c.description}`)),
         blank(),
-        line("Usage: project <id|name>    projects [tag]", "muted"),
+        line("Arguments:", "muted"),
+        line("  projects [tag]", "muted"),
+        line("  project <id|name>", "muted"),
+        line("  open <id|name>", "muted"),
+        line("  theme [dark|light]", "muted"),
       ],
     }
   },
@@ -157,6 +163,47 @@ const handlers: Record<string, Handler> = {
     return { lines: out }
   },
 
+  open: (args) => {
+    const query = args.join(" ")
+    if (!query) {
+      return {
+        lines: [
+          line("usage: open <id|name>", "error"),
+          line(`Try: open ${PROJECTS[0] ? projectSlug(PROJECTS[0]) : "<name>"}`, "muted"),
+        ],
+      }
+    }
+    const p = findProject(query)
+    if (!p) {
+      return {
+        lines: [
+          line(`open: '${query}' not found`, "error"),
+          line("Run 'projects' to see the list.", "muted"),
+        ],
+      }
+    }
+    const url = p.repo ?? p.demo
+    if (!url) return { lines: [line(`open: ${p.name} has no repository or demo link`, "error")] }
+    window.open(url, "_blank", "noopener,noreferrer")
+    return {
+      lines: [
+        line(`Opening ${p.name} in a new tab...`, "success"),
+        line(url, "default", url),
+      ],
+    }
+  },
+
+  theme: (args) => {
+    const arg = args[0]?.toLowerCase()
+    if (arg && arg !== "dark" && arg !== "light" && arg !== "toggle") {
+      return { lines: [line("usage: theme [dark|light]", "error")] }
+    }
+    const next: Theme =
+      arg === "dark" || arg === "light" ? arg : getTheme() === "dark" ? "light" : "dark"
+    setTheme(next)
+    return { lines: [line(`Theme set to ${next}.`, "success")] }
+  },
+
   clear: () => ({ lines: [], clear: true }),
 
   neofetch: () => {
@@ -222,7 +269,8 @@ export function complete(input: string): Completion {
   const command = parts[0].toLowerCase()
   const partial = parts.slice(1).join(" ").toLowerCase()
   let pool: string[] = []
-  if (command === "project") pool = PROJECTS.map(projectSlug)
+  if (command === "project" || command === "open") pool = PROJECTS.map(projectSlug)
+  else if (command === "theme") pool = ["dark", "light"]
   else if (command === "projects") pool = PROJECT_TAGS
   const matches = pool.filter((v) => v.startsWith(partial))
   if (matches.length === 0) return { value: input, candidates: [] }

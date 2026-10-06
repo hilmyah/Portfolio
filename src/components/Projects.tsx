@@ -2,6 +2,7 @@ import * as React from "react"
 import { PROJECTS } from "@/data"
 import type { Project } from "@/data"
 import { cn } from "@/lib/utils"
+import { Reveal } from "@/components/Reveal"
 
 type Group = { folder: string; items: Project[] }
 
@@ -28,8 +29,8 @@ export function Projects() {
       <h2 className="font-black text-2xl md:text-3xl mb-6">Projects</h2>
       <div className="grid md:grid-cols-1 gap-4 items-start">
         {folderNames.map((folder, idx) => (
+          <Reveal key={folder} delay={idx * 90}>
           <div
-            key={folder}
             className={cn("relative rounded-lg border border-border bg-card transition-all paper-shadow")}
           >
             <span aria-hidden className="pointer-events-none absolute -left-1 -top-1 h-4 w-10 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat" />
@@ -94,6 +95,7 @@ export function Projects() {
               </div>
             </div>
           </div>
+          </Reveal>
         ))}
       </div>
     </section>

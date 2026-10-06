@@ -1,6 +1,8 @@
 import * as React from "react"
 import { TERMINAL_COMMANDS } from "@/data"
 import { cn } from "@/lib/utils"
+import { prefersReducedMotion } from "@/lib/theme"
+import { Reveal } from "@/components/Reveal"
 import {
   PROMPT_HOST,
   PROMPT_USER,
@@ -24,7 +26,14 @@ const toneClass: Record<Tone, string> = {
   error: "text-rose-300",
 }
 
-const QUICK_COMMANDS = TERMINAL_COMMANDS.map((c) => c.command).filter((c) => c !== "project")
+const QUICK_COMMANDS = TERMINAL_COMMANDS.map((c) => c.command).filter((c) => c !== "project" && c !== "open")
+
+// closed: not yet scrolled into view. opening: window unrolls. typing: the intro command types itself.
+type Phase = "closed" | "opening" | "typing" | "ready"
+
+const INTRO_COMMAND = "neofetch"
+const OPEN_DURATION_MS = 1050
+const TYPE_INTERVAL_MS = 85
 
 function Prompt() {
   return (
@@ -67,22 +76,89 @@ export function Terminal() {
   const draft = React.useRef("")
   const scrollRef = React.useRef<HTMLDivElement | null>(null)
   const inputRef = React.useRef<HTMLInputElement | null>(null)
+  const windowRef = React.useRef<HTMLDivElement | null>(null)
+  const [phase, setPhase] = React.useState<Phase>("closed")
+  const [typed, setTyped] = React.useState("")
+  const introDone = React.useRef(false)
 
   React.useEffect(() => {
     const el = scrollRef.current
     if (el) el.scrollTop = el.scrollHeight
   }, [entries])
 
-  const execute = React.useCallback((raw: string) => {
+  const execute = React.useCallback((raw: string, record = true) => {
     const input = raw.trim()
     const result = runCommand(input)
     const id = nextId.current++
     setEntries((prev) => (result.clear ? [] : [...prev, { id, input: raw, lines: result.lines }]))
-    if (input) setHistory((prev) => (prev[prev.length - 1] === input ? prev : [...prev, input]))
+    if (input && record) setHistory((prev) => (prev[prev.length - 1] === input ? prev : [...prev, input]))
     setHistoryIndex(null)
     draft.current = ""
     setValue("")
   }, [])
+
+  // Open the window the first time it scrolls into view.
+  React.useEffect(() => {
+    const el = windowRef.current
+    if (!el) return
+    const start = () => {
+      if (introDone.current) return
+      if (prefersReducedMotion()) {
+        introDone.current = true
+        execute(INTRO_COMMAND, false)
+        setPhase("ready")
+        return
+      }
+      setPhase((current) => (current === "closed" ? "opening" : current))
+    }
+    if (!("IntersectionObserver" in window)) {
+      start()
+      return
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          observer.disconnect()
+          start()
+        }
+      },
+      { threshold: 0.3 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [execute])
+
+  // After the window has unrolled, type the intro command and run it.
+  React.useEffect(() => {
+    if (phase === "opening") {
+      const timer = window.setTimeout(() => setPhase("typing"), OPEN_DURATION_MS)
+      return () => window.clearTimeout(timer)
+    }
+    if (phase === "typing") {
+      let index = 0
+      let finish: number | undefined
+      const interval = window.setInterval(() => {
+        index += 1
+        setTyped(INTRO_COMMAND.slice(0, index))
+        if (index >= INTRO_COMMAND.length) {
+          window.clearInterval(interval)
+          finish = window.setTimeout(() => {
+            if (introDone.current) return
+            introDone.current = true
+            setTyped("")
+            execute(INTRO_COMMAND, false)
+            setPhase("ready")
+          }, 320)
+        }
+      }, TYPE_INTERVAL_MS)
+      return () => {
+        window.clearInterval(interval)
+        if (finish) window.clearTimeout(finish)
+      }
+    }
+  }, [phase, execute])
+
+  const ready = phase === "ready"
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
@@ -133,6 +209,7 @@ export function Terminal() {
   }
 
   const focusInput = () => {
+    if (!ready) return
     const selection = window.getSelection()
     if (selection && selection.toString().length > 0) return
     inputRef.current?.focus({ preventScroll: true })
@@ -140,17 +217,20 @@ export function Terminal() {
 
   return (
     <section id="terminal" className="relative mx-auto max-w-6xl scroll-mt-32 px-4 py-16">
-      <h2 className="font-black text-2xl md:text-3xl mb-2 underline-scribble inline-block">Terminal</h2>
-      <p className="mb-6 text-sm text-muted-foreground">
-        The same portfolio, through a shell. Type a command or pick one below.
-      </p>
+      <Reveal>
+        <h2 className="font-black text-2xl md:text-3xl mb-2 underline-scribble inline-block">Terminal</h2>
+        <p className="mb-6 text-sm text-muted-foreground">
+          The same portfolio, through a shell. Type a command or pick one below.
+        </p>
+      </Reveal>
 
-      <div className="relative">
+      {/* min-height reserves the open size (26rem body + 40px title bar + 2px border) so nothing below shifts */}
+      <div ref={windowRef} className="terminal-window relative min-h-[calc(26rem+42px)]" data-open={phase !== "closed"}>
         <span aria-hidden className="pointer-events-none absolute -left-2 -top-2 z-10 h-5 w-14 -rotate-6 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat" />
         <span aria-hidden className="pointer-events-none absolute -right-2 -top-2 z-10 h-5 w-14 rotate-6 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat" />
 
         <div className="overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950 card-shadow">
-          <div className="flex items-center gap-2 border-b border-neutral-800 bg-neutral-900 px-4 py-2.5">
+          <div className="flex h-10 items-center gap-2 border-b border-neutral-800 bg-neutral-900 px-4">
             <span aria-hidden className="h-3 w-3 rounded-full bg-rose-400/80" />
             <span aria-hidden className="h-3 w-3 rounded-full bg-amber-300/80" />
             <span aria-hidden className="h-3 w-3 rounded-full bg-emerald-400/80" />
@@ -159,6 +239,9 @@ export function Terminal() {
             </span>
           </div>
 
+          <div className="terminal-body">
+          <div>
+          <span aria-hidden className="terminal-sweep" />
           <div
             ref={scrollRef}
             onClick={focusInput}
@@ -180,7 +263,16 @@ export function Terminal() {
               ))}
             </div>
 
-            <label className="flex items-center gap-2">
+            {!ready && (
+              <div className="flex items-center gap-2" aria-hidden>
+                <Prompt />
+                <span className="text-neutral-100">
+                  {typed}
+                  <span className="terminal-cursor" />
+                </span>
+              </div>
+            )}
+            <label className={cn("flex items-center gap-2", !ready && "hidden")}>
               <Prompt />
               <span className="sr-only">Terminal command</span>
               <input
@@ -201,6 +293,8 @@ export function Terminal() {
               />
             </label>
           </div>
+          </div>
+          </div>
         </div>
       </div>
 
@@ -210,7 +304,8 @@ export function Terminal() {
             key={command}
             type="button"
             onClick={() => execute(command)}
-            className="rounded-md border border-border bg-card px-2.5 py-1 font-mono text-xs transition-transform hover:-translate-y-0.5 hover:bg-accent/60 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            disabled={!ready}
+            className="disabled:opacity-60 rounded-md border border-border bg-card px-2.5 py-1 font-mono text-xs transition-transform hover:-translate-y-0.5 hover:bg-accent/60 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {command}
           </button>
