@@ -69,7 +69,12 @@ type AudioState = {
 
 type PlayerProps = { minimal?: boolean }
 
-export function MusicPlayer({ minimal = false }: PlayerProps) {
+export function MusicPlayer(props: PlayerProps) {
+  if (SONGS.length === 0) return null
+  return <MusicPlayerInner {...props} />
+}
+
+function MusicPlayerInner({ minimal = false }: PlayerProps) {
   const [state, setState] = React.useState<AudioState>({
     currentIndex: 0,
     isPlaying: false,
@@ -84,10 +89,6 @@ export function MusicPlayer({ minimal = false }: PlayerProps) {
 
   const currentSong = SONGS[state.currentIndex]
 
-  if (!currentSong) {
-    return null
-  }
-  
   React.useEffect(() => {
     if (!audioRef.current) return
     audioRef.current.volume = state.volume
@@ -148,6 +149,8 @@ export function MusicPlayer({ minimal = false }: PlayerProps) {
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(target.tagName))) return
       if (e.code === "Space") {
         e.preventDefault()
         setState((s) => ({ ...s, isPlaying: !s.isPlaying }))
@@ -266,4 +269,4 @@ export function MusicPlayer({ minimal = false }: PlayerProps) {
       </CardContent>
     </Card>
   )
-}
+}

@@ -72,7 +72,9 @@ function saveLayout(data: FreeSticker[]): void {
   try {
     if (typeof window === 'undefined') return
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-  } catch {}
+  } catch {
+    // localStorage unavailable (private mode); layout is regenerated on next load
+  }
 }
 
 function pickSidesSequence(count: number): Side[] {
@@ -206,11 +208,11 @@ export function Hero() {
                   top: `${it.topPct}%`,
                   left: `${it.leftPct}%`,
                   zIndex: it.z,
-                  ["--rot" as any]: `${it.rotateDeg}deg`,
-                  ["--scale" as any]: it.scale,
+                  "--rot": `${it.rotateDeg}deg`,
+                  "--scale": it.scale,
                   animationDelay: `${it.delayMs}ms`,
                   animationDuration: `${it.durationMs}ms`,
-                }}
+                } as React.CSSProperties}
                 className={`absolute -translate-x-1/2 -translate-y-1/2 text-2xl md:text-3xl transition-transform duration-300 ease-out will-change-transform select-none sticker ${
                   it.anim === "bob" ? "animate-bob-sticker" : "animate-drift-sticker"
                 } hover:[--scale:1.15] active:[--scale:.95] pointer-events-auto`}

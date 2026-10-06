@@ -3,6 +3,7 @@ import { Navbar } from '@/components/Navbar'
 import { Hero } from '@/components/Hero'
 import { About } from '@/components/About'
 import { Projects } from '@/components/Projects'
+import { Terminal } from '@/components/Terminal'
 import { Footer } from '@/components/Footer'
 import { ScrollTop } from '@/components/ScrollTop'
 
@@ -27,12 +28,13 @@ function App() {
   }, [])
 
   return (
-    <div className="font-sans">
+    <div className="font-sans overflow-x-clip">
       <Navbar />
       <main>
         <Hero />
         <About />
         <Projects />
+        <Terminal />
       </main>
       <Footer />
       <ScrollTop />

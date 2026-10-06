@@ -72,6 +72,7 @@ export function Navbar() {
         <div className="hidden md:flex items-center gap-1">
           <a href="#about" className={linkClass} onClick={(e) => { e.preventDefault(); smoothScrollTo('#about') }}>About</a>
           <a href="#projects" className={linkClass} onClick={(e) => { e.preventDefault(); smoothScrollTo('#projects') }}>Projects</a>
+          <a href="#terminal" className={linkClass} onClick={(e) => { e.preventDefault(); smoothScrollTo('#terminal') }}>Terminal</a>
           <a href="#social" className={linkClass} onClick={(e) => { e.preventDefault(); smoothScrollTo('#social') }}>Social</a>
           <Button
             variant="ghost"
@@ -106,7 +107,7 @@ export function Navbar() {
             ].map((src, i) => (
               <span
                 key={src + i}
-                style={{ ['--r' as any]: `${(i%2?1:-1)}deg`, backgroundImage: `url('${src}')` }}
+                style={{ '--r': `${(i%2?1:-1)}deg`, backgroundImage: `url('${src}')` } as React.CSSProperties}
                 className={`h-7 w-full bg-center bg-no-repeat bg-contain ${i%2? 'animate-bob':'animate-drift'}`}
                 aria-hidden
               />
@@ -119,6 +120,7 @@ export function Navbar() {
           <div className="mx-auto max-w-6xl px-4 py-3 flex flex-col gap-2">
             <a className={linkClass} href="#about" onClick={(e) => { e.preventDefault(); setOpen(false); smoothScrollTo('#about') }}>About</a>
             <a className={linkClass} href="#projects" onClick={(e) => { e.preventDefault(); setOpen(false); smoothScrollTo('#projects') }}>Projects</a>
+            <a className={linkClass} href="#terminal" onClick={(e) => { e.preventDefault(); setOpen(false); smoothScrollTo('#terminal') }}>Terminal</a>
             <a className={linkClass} href="#social" onClick={(e) => { e.preventDefault(); setOpen(false); smoothScrollTo('#social') }}>Social</a>
             <Button
               variant="outline"

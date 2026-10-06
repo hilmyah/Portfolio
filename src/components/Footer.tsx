@@ -1,4 +1,3 @@
-import * as React from "react"
 import { SOCIALS, PROFILE } from "@/data"
 
 export function Footer() {

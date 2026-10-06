@@ -1,20 +1,19 @@
 import * as React from "react"
 import { PROJECTS } from "@/data"
+import type { Project } from "@/data"
 import { cn } from "@/lib/utils"
 
-type Group = { folder: string; items: typeof PROJECTS }
+type Group = { folder: string; items: Project[] }
 
-const groups: Record<string, Group> = PROJECTS.reduce((acc, p) => {
-  if (!acc[p.folder]) acc[p.folder] = { folder: p.folder, items: [] as any }
-  ;(acc[p.folder].items as any).push(p)
+const groups = PROJECTS.reduce<Record<string, Group>>((acc, p) => {
+  if (!acc[p.folder]) acc[p.folder] = { folder: p.folder, items: [] }
+  acc[p.folder].items.push(p)
   return acc
-}, {} as Record<string, Group>)
+}, {})
 
 export function Projects() {
-  if (PROJECTS.length === 0) {
-    return null
-  }
   const [openFolder, setOpenFolder] = React.useState<string | null>(null)
+  if (PROJECTS.length === 0) return null
   const folderNames = Object.keys(groups)
   const noteClasses = [
     "bg-yellow-100 border-yellow-300",
@@ -25,7 +24,7 @@ export function Projects() {
   ]
 
   return (
-    <section id="projects" className="mx-auto max-w-6xl px-4 py-16">
+    <section id="projects" className="mx-auto max-w-6xl scroll-mt-32 px-4 py-16">
       <h2 className="font-black text-2xl md:text-3xl mb-6">Projects</h2>
       <div className="grid md:grid-cols-1 gap-4 items-start">
         {folderNames.map((folder, idx) => (
@@ -63,14 +62,16 @@ export function Projects() {
               <div className="min-h-0">
                 <ul className="divide-y divide-border">
                   {groups[folder].items.map((p) => (
-                    <li key={p.id} className="relative p-5 flex gap-5 transition-transform hover:translate-x-1 bg-card/60">
+                    <li key={p.id} className="relative p-5 flex flex-col sm:flex-row gap-5 transition-transform hover:translate-x-1 bg-card/60">
                       <span aria-hidden className="pointer-events-none absolute left-3 top-2 h-6 w-6 bg-[url('/img/pin.svg')] bg-contain bg-no-repeat" />
                       <span aria-hidden className="pointer-events-none absolute right-3 top-2 h-6 w-6 bg-[url('/img/clip.svg')] bg-contain bg-no-repeat" />
-                      <img src={p.thumbnail} alt={`${p.name} thumbnail`} className="h-40 w-64 md:h-44 md:w-72 rounded-md border border-border object-cover shadow" />
+                      {p.thumbnail && (
+                        <img src={p.thumbnail} alt={`${p.name} thumbnail`} className="h-40 w-full sm:w-64 md:h-44 md:w-72 shrink-0 rounded-md border border-border object-cover shadow" />
+                      )}
                       <div className="min-w-0 text-left">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="font-semibold truncate">{p.name}</span>
-                          <div className="flex gap-1">
+                          <div className="flex flex-wrap gap-1">
                             {p.tech.map((t) => (
                               <span key={t} className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs">{t}</span>
                             ))}
@@ -98,5 +99,3 @@ export function Projects() {
     </section>
   )
 }
-
-
