@@ -1,0 +1,30 @@
+[Unit]
+Description=Portfolio terminal network API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=hilmy
+Group=hilmy
+WorkingDirectory=/home/hilmy/projects/Portfolio/server
+ExecStart=/usr/bin/node /home/hilmy/projects/Portfolio/server/netapi.mjs
+Environment=NETAPI_PORT=8787
+Restart=on-failure
+RestartSec=3
+
+# The service only needs to read its own code and start `ping`.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryMax=128M
+TasksMax=32
+
+[Install]
+WantedBy=multi-user.target

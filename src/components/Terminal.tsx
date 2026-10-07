@@ -1,5 +1,5 @@
 import * as React from "react"
-import { TERMINAL_COMMANDS } from "@/data"
+import { SITE_DOMAIN, TERMINAL_COMMANDS } from "@/data"
 import { cn } from "@/lib/utils"
 import { prefersReducedMotion } from "@/lib/theme"
 import { Reveal } from "@/components/Reveal"
@@ -26,7 +26,14 @@ const toneClass: Record<Tone, string> = {
   error: "text-rose-300",
 }
 
-const QUICK_COMMANDS = TERMINAL_COMMANDS.map((c) => c.command).filter((c) => c !== "project" && c !== "open")
+// Commands that need an argument get a ready-made example instead of a bare chip.
+const NEEDS_ARGUMENT = new Set(["project", "open", "ping", "dig", "nslookup", "host", "whois", "traceroute"])
+const QUICK_COMMANDS = [
+  ...TERMINAL_COMMANDS.map((c) => c.command).filter((c) => !NEEDS_ARGUMENT.has(c)),
+  `dig ${SITE_DOMAIN}`,
+  `whois ${SITE_DOMAIN}`,
+  `ping ${SITE_DOMAIN}`,
+]
 
 // closed: not yet scrolled into view. opening: window unrolls. typing: the intro command types itself.
 type Phase = "closed" | "opening" | "typing" | "ready"
@@ -80,6 +87,11 @@ export function Terminal() {
   const [phase, setPhase] = React.useState<Phase>("closed")
   const [typed, setTyped] = React.useState("")
   const introDone = React.useRef(false)
+  // busy: an async command (dig, whois, ping) is running; running holds its abort handle.
+  const [busy, setBusy] = React.useState(false)
+  const running = React.useRef<AbortController | null>(null)
+
+  React.useEffect(() => () => running.current?.abort(), [])
 
   React.useEffect(() => {
     const el = scrollRef.current
@@ -87,14 +99,38 @@ export function Terminal() {
   }, [entries])
 
   const execute = React.useCallback((raw: string, record = true) => {
+    if (running.current) return
     const input = raw.trim()
-    const result = runCommand(input)
     const id = nextId.current++
-    setEntries((prev) => (result.clear ? [] : [...prev, { id, input: raw, lines: result.lines }]))
+    const controller = new AbortController()
+    const print = (lines: TerminalLine[]) => {
+      if (lines.length === 0) return
+      setEntries((prev) => prev.map((entry) => (entry.id === id ? { ...entry, lines: [...entry.lines, ...lines] } : entry)))
+    }
+
+    // The entry is added first so a command can print progress before it finishes.
+    setEntries((prev) => [...prev, { id, input: raw, lines: [] }])
     if (input && record) setHistory((prev) => (prev[prev.length - 1] === input ? prev : [...prev, input]))
     setHistoryIndex(null)
     draft.current = ""
     setValue("")
+
+    const result = runCommand(input, { print, signal: controller.signal })
+    if (!(result instanceof Promise)) {
+      if (result.clear) setEntries([])
+      else print(result.lines)
+      return
+    }
+
+    running.current = controller
+    setBusy(true)
+    result
+      .then((done) => print(done.lines))
+      .catch(() => print([{ text: "Command failed unexpectedly.", tone: "error" }]))
+      .finally(() => {
+        running.current = null
+        setBusy(false)
+      })
   }, [])
 
   // Open the window the first time it scrolls into view.
@@ -161,6 +197,24 @@ export function Terminal() {
   const ready = phase === "ready"
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key.toLowerCase() === "c" && e.ctrlKey) {
+      const selection = window.getSelection()
+      if (selection && selection.toString().length > 0) return // let the browser copy
+      e.preventDefault()
+      if (running.current) {
+        running.current.abort()
+      } else if (value) {
+        const id = nextId.current++
+        setEntries((prev) => [...prev, { id, input: `${value}^C`, lines: [] }])
+        setValue("")
+        setHistoryIndex(null)
+      }
+      return
+    }
+    if (busy) {
+      if (e.key !== "Tab") e.preventDefault()
+      return
+    }
     if (e.key === "Enter") {
       e.preventDefault()
       execute(value)
@@ -273,7 +327,7 @@ export function Terminal() {
               </div>
             )}
             <label className={cn("flex items-center gap-2", !ready && "hidden")}>
-              <Prompt />
+              {busy ? <span aria-hidden className="terminal-cursor" /> : <Prompt />}
               <span className="sr-only">Terminal command</span>
               <input
                 ref={inputRef}
@@ -283,8 +337,12 @@ export function Terminal() {
                   setHistoryIndex(null)
                 }}
                 onKeyDown={onKeyDown}
-                className="min-w-0 flex-1 bg-transparent text-neutral-100 caret-amber-300 outline-none placeholder:text-neutral-600"
-                placeholder="help"
+                readOnly={busy}
+                className={cn(
+                  "min-w-0 flex-1 bg-transparent text-neutral-100 outline-none placeholder:text-neutral-600",
+                  busy ? "caret-transparent" : "caret-amber-300"
+                )}
+                placeholder={busy ? "" : "help"}
                 spellCheck={false}
                 autoCapitalize="off"
                 autoComplete="off"
@@ -304,12 +362,21 @@ export function Terminal() {
             key={command}
             type="button"
             onClick={() => execute(command)}
-            disabled={!ready}
+            disabled={!ready || busy}
             className="disabled:opacity-60 rounded-md border border-border bg-card px-2.5 py-1 font-mono text-xs transition-transform hover:-translate-y-0.5 hover:bg-accent/60 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {command}
           </button>
         ))}
+        {busy && (
+          <button
+            type="button"
+            onClick={() => running.current?.abort()}
+            className="rounded-md border border-rose-300 bg-rose-100 px-2.5 py-1 font-mono text-xs text-rose-900 transition-transform hover:-translate-y-0.5 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            ^C stop
+          </button>
+        )}
       </div>
     </section>
   )

@@ -1,0 +1,2 @@
+server/*.mjs text eol=lf
+server/*.service text eol=lf

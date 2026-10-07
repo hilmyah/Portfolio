@@ -175,6 +175,9 @@ export const SOCIALS: Social = {
   instagram: "https://www.instagram.com/hlmydr/",
 }
 
+// Host used in the terminal's example network commands (dig, whois, ping).
+export const SITE_DOMAIN = "hilmyah.my.id"
+
 export const TERMINAL_COMMANDS: TerminalCommand[] = [
   { command: "help", description: "Show available commands" },
   { command: "about", description: "About Hilmy" },
@@ -182,6 +185,12 @@ export const TERMINAL_COMMANDS: TerminalCommand[] = [
   { command: "project", description: "Show project details" },
   { command: "open", description: "Open a project repository" },
   { command: "skills", description: "Show tools and technologies" },
+  { command: "ping", description: "Ping a host (ICMP, from the server)" },
+  { command: "dig", description: "Query DNS records" },
+  { command: "nslookup", description: "Query DNS records" },
+  { command: "host", description: "Query DNS records" },
+  { command: "whois", description: "Look up domain or IP registration" },
+  { command: "traceroute", description: "Trace the route to a host" },
   { command: "contact", description: "Show contact information" },
   { command: "theme", description: "Switch light or dark theme" },
   { command: "clear", description: "Clear terminal" },

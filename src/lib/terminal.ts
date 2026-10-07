@@ -3,11 +3,14 @@ import {
   PROFILE,
   PROJECTS,
   PROJECT_TAGS,
+  SITE_DOMAIN,
   SOCIALS,
   TERMINAL_COMMANDS,
   TOOLS,
 } from "@/data"
 import type { Project } from "@/data"
+import { REMOTE_COMMANDS, networkCommand } from "@/lib/netCommands"
+import { applyFilter, isFilter, parsePipeline } from "@/lib/pipeline"
 import { getTheme, setTheme } from "@/lib/theme"
 import type { Theme } from "@/lib/theme"
 
@@ -62,7 +65,13 @@ function socialLines(): TerminalLine[] {
   return out
 }
 
-type Handler = (args: string[]) => TerminalResult
+/** Passed to every command. Long-running commands print progress and stop when the signal aborts. */
+export type CommandContext = {
+  print: (lines: TerminalLine[]) => void
+  signal: AbortSignal
+}
+
+type Handler = (args: string[], ctx: CommandContext) => TerminalResult | Promise<TerminalResult>
 
 const handlers: Record<string, Handler> = {
   help: () => {
@@ -77,6 +86,16 @@ const handlers: Record<string, Handler> = {
         line("  project <id|name>", "muted"),
         line("  open <id|name>", "muted"),
         line("  theme [dark|light]", "muted"),
+        blank(),
+        line("Network tools run on the server with their usual flags:", "muted"),
+        line("  ping -c 3 github.com", "muted"),
+        line("  dig -x 1.1.1.1 @8.8.8.8 +short", "muted"),
+        line("  whois hilmyah.my.id | grep -i \"name server\"", "muted"),
+        line("  nslookup -type=MX hilmyah.my.id      host -t NS hilmyah.my.id", "muted"),
+        line("  traceroute -m 15 1.1.1.1", "muted"),
+        blank(),
+        line("Pipes: any command | grep, head, tail, sort, uniq, wc", "muted"),
+        line("Ctrl+C stops a running command, Ctrl+L clears the screen.", "muted"),
       ],
     }
   },
@@ -204,6 +223,8 @@ const handlers: Record<string, Handler> = {
     return { lines: [line(`Theme set to ${next}.`, "success")] }
   },
 
+  ...Object.fromEntries(REMOTE_COMMANDS.map((cmd) => [cmd, networkCommand(cmd)])),
+
   clear: () => ({ lines: [], clear: true }),
 
   neofetch: () => {
@@ -223,21 +244,45 @@ const handlers: Record<string, Handler> = {
   },
 }
 
-export function runCommand(input: string): TerminalResult {
-  const trimmed = input.trim()
-  if (!trimmed) return { lines: [] }
-  const [rawName, ...args] = trimmed.split(/\s+/)
+function dispatch(argv: string[], ctx: CommandContext): TerminalResult | Promise<TerminalResult> {
+  const [rawName, ...args] = argv
   const name = rawName.toLowerCase()
   const handler = Object.prototype.hasOwnProperty.call(handlers, name) ? handlers[name] : undefined
   if (!handler) {
-    return {
-      lines: [
-        line(`${rawName}: command not found`, "error"),
-        line("Type 'help' to list commands.", "muted"),
-      ],
-    }
+    const hint = isFilter(name)
+      ? `'${name}' works after a pipe, for example: whois ${SITE_DOMAIN} | ${name === "grep" ? "grep -i registrar" : name}`
+      : "Type 'help' to list commands."
+    return { lines: [line(`${rawName}: command not found`, "error"), line(hint, "muted")] }
   }
-  return handler(args)
+  return handler(args, ctx)
+}
+
+export function runCommand(input: string, ctx: CommandContext): TerminalResult | Promise<TerminalResult> {
+  if (!input.trim()) return { lines: [] }
+  const parsed = parsePipeline(input)
+  if ("error" in parsed) return { lines: [line(parsed.error, "error")] }
+
+  const [command, ...filters] = parsed.stages
+  if (filters.length === 0) return dispatch(command, ctx)
+
+  const unknown = filters.find((stage) => !isFilter(stage[0].toLowerCase()))
+  if (unknown) {
+    return { lines: [line(`${unknown[0]}: not available after a pipe (use grep, head, tail, sort, uniq or wc)`, "error")] }
+  }
+
+  // With filters, the command's output is collected first and shown only after the last filter.
+  const collected: TerminalLine[] = []
+  const finish = (result: TerminalResult): TerminalResult => {
+    let lines = [...collected, ...result.lines]
+    for (const [name, ...args] of filters) {
+      const filtered = applyFilter(name.toLowerCase(), args, lines)
+      if ("error" in filtered) return { lines: [line(filtered.error, "error")] }
+      lines = filtered.lines
+    }
+    return { lines }
+  }
+  const result = dispatch(command, { print: (lines) => collected.push(...lines), signal: ctx.signal })
+  return result instanceof Promise ? result.then(finish) : finish(result)
 }
 
 function commonPrefix(values: string[]): string {
@@ -271,6 +316,7 @@ export function complete(input: string): Completion {
   let pool: string[] = []
   if (command === "project" || command === "open") pool = PROJECTS.map(projectSlug)
   else if (command === "theme") pool = ["dark", "light"]
+  else if ((REMOTE_COMMANDS as readonly string[]).includes(command)) pool = [SITE_DOMAIN]
   else if (command === "projects") pool = PROJECT_TAGS
   const matches = pool.filter((v) => v.startsWith(partial))
   if (matches.length === 0) return { value: input, candidates: [] }
