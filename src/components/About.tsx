@@ -29,13 +29,12 @@ export function About() {
               const y = ((i * 23) % 6) - 3
               const x = ((i * 31) % 6) - 3
               const dur = 6 + ((i * 7) % 5)
-              const isDarkLogo = /github|nextjs|prisma|express/i.test(t.icon)
               return (
                 <Tooltip key={t.name} content={<div><span className="font-semibold">{t.name}</span></div>}>
                   <img
                     src={t.icon}
                     alt={`${t.name} icon`}
-                    className={`h-10 w-10 md:h-12 md:w-12 rounded-md border border-border bg-card p-2 shadow transition-transform hover:scale-110 hover:-rotate-2 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring animate-indie-idle ${isDarkLogo ? 'force-white-on-dark' : ''}`}
+                    className={`h-10 w-10 md:h-12 md:w-12 rounded-md border border-border bg-card p-2 shadow dark:border-neutral-300 dark:bg-neutral-100 transition-transform hover:scale-110 hover:-rotate-2 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring animate-indie-idle`}
                     style={{ transform: `translate(calc(${x}px + var(--idle-tx)), calc(${y}px + var(--idle-ty))) rotate(calc(${rot}deg + var(--idle-rot)))`, '--idle-dur': `${dur}s` } as CSSProperties}
                   />
                 </Tooltip>
