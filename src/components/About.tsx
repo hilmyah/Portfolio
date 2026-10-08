@@ -31,12 +31,15 @@ export function About() {
               const dur = 6 + ((i * 7) % 5)
               return (
                 <Tooltip key={t.name} content={<div><span className="font-semibold">{t.name}</span></div>}>
+                  {/* polish: tools-stagger. Each icon pops in a little after the previous one. */}
+                  <span className="tool-pop inline-block" style={{ "--i": i } as CSSProperties}>
                   <img
                     src={t.icon}
                     alt={`${t.name} icon`}
                     className={`h-10 w-10 md:h-12 md:w-12 rounded-md border border-border bg-card p-2 shadow dark:border-neutral-300 dark:bg-neutral-100 transition-transform hover:scale-110 hover:-rotate-2 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring animate-indie-idle`}
                     style={{ transform: `translate(calc(${x}px + var(--idle-tx)), calc(${y}px + var(--idle-ty))) rotate(calc(${rot}deg + var(--idle-rot)))`, '--idle-dur': `${dur}s` } as CSSProperties}
                   />
+                  </span>
                 </Tooltip>
               )
             })}

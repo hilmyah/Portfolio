@@ -31,9 +31,14 @@ export type Project = {
   demo?: string
 }
 
+export type CommandGroup = "portfolio" | "files" | "network" | "shell"
+
 export type TerminalCommand = {
   command: string
   description: string
+  group: CommandGroup
+  usage?: string
+  examples?: string[]
 }
 
 export type Social = {
@@ -41,6 +46,7 @@ export type Social = {
   github?: string
   linkedin?: string
   instagram?: string
+  facebook?: string
 }
 
 export const PROFILE: Profile = {
@@ -173,26 +179,36 @@ export const SOCIALS: Social = {
   github: "https://github.com/hilmyah",
   linkedin: "https://www.linkedin.com/in/hilmyah/",
   instagram: "https://www.instagram.com/hlmydr/",
+  facebook: "https://www.facebook.com/andra.794636",
 }
 
 // Host used in the terminal's example network commands (dig, whois, ping).
 export const SITE_DOMAIN = "hilmyah.my.id"
 
 export const TERMINAL_COMMANDS: TerminalCommand[] = [
-  { command: "help", description: "Show available commands" },
-  { command: "about", description: "About Hilmy" },
-  { command: "projects", description: "List projects" },
-  { command: "project", description: "Show project details" },
-  { command: "open", description: "Open a project repository" },
-  { command: "skills", description: "Show tools and technologies" },
-  { command: "ping", description: "Ping a host (ICMP, from the server)" },
-  { command: "dig", description: "Query DNS records" },
-  { command: "nslookup", description: "Query DNS records" },
-  { command: "host", description: "Query DNS records" },
-  { command: "whois", description: "Look up domain or IP registration" },
-  { command: "traceroute", description: "Trace the route to a host" },
-  { command: "contact", description: "Show contact information" },
-  { command: "theme", description: "Switch light or dark theme" },
-  { command: "clear", description: "Clear terminal" },
-  { command: "neofetch", description: "Show portfolio information" },
+  { command: "about", group: "portfolio", description: "About Hilmy" },
+  { command: "fetch", group: "portfolio", description: "Show portfolio information" },
+  { command: "projects", group: "portfolio", description: "List projects", usage: "projects [tag]", examples: ["projects", "projects iot"] },
+  { command: "project", group: "portfolio", description: "Show project details", usage: "project <id|name>", examples: ["project sijacrypt"] },
+  { command: "open", group: "portfolio", description: "Open a project repository", usage: "open <id|name>", examples: ["open bedrock-server"] },
+  { command: "tools", group: "portfolio", description: "Show tools and technologies" },
+  { command: "contact", group: "portfolio", description: "Show contact information" },
+
+  { command: "ls", group: "files", description: "List files", usage: "ls [-l] [dir]", examples: ["ls -l", "ls projects"] },
+  { command: "cd", group: "files", description: "Change directory", usage: "cd [dir]", examples: ["cd projects", "cd .."] },
+  { command: "cat", group: "files", description: "Print a file", usage: "cat <file>...", examples: ["cat about.md", "cat projects/sijacrypt.md"] },
+  { command: "pwd", group: "files", description: "Print current directory" },
+  { command: "tree", group: "files", description: "Show the file tree", usage: "tree [dir]" },
+
+  { command: "ping", group: "network", description: "Ping a host (ICMP, sent from the server)", usage: "ping [-c count] [-4|-6] <host>", examples: ["ping -c 3 github.com"] },
+  { command: "dig", group: "network", description: "Query DNS records", usage: "dig [@server] [-x ip] [-t type] <name> [type] [+options]", examples: ["dig hilmyah.my.id MX", "dig -x 1.1.1.1 @8.8.8.8 +short"] },
+  { command: "nslookup", group: "network", description: "Query DNS records", usage: "nslookup [-type=TYPE] <name|ip> [server]", examples: ["nslookup -type=MX hilmyah.my.id"] },
+  { command: "host", group: "network", description: "Query DNS records", usage: "host [-t TYPE] <name|ip> [server]", examples: ["host -t NS hilmyah.my.id"] },
+  { command: "whois", group: "network", description: "Look up domain or IP registration", usage: "whois [-h server] <domain|ip>", examples: ['whois hilmyah.my.id | grep -i "name server"'] },
+  { command: "traceroute", group: "network", description: "Trace the route to a host", usage: "traceroute [-m hops] [-4|-6] <host>", examples: ["traceroute -m 15 1.1.1.1"] },
+  { command: "curl", group: "network", description: "Fetch a URL over HTTP(S)", usage: "curl [-I] [-i] [-L] [-v] [-s] [-H 'Name: value'] [-A agent] <url>", examples: ["curl -I https://hilmyah.my.id", "curl -sL https://example.com | head -5"] },
+
+  { command: "help", group: "shell", description: "List commands, or explain one", usage: "help [command]", examples: ["help dig"] },
+  { command: "theme", group: "shell", description: "Switch light or dark theme", usage: "theme [dark|light]" },
+  { command: "clear", group: "shell", description: "Clear the screen" },
 ]

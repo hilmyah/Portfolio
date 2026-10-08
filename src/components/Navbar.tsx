@@ -8,7 +8,41 @@ export function Navbar() {
   const isDark = useTheme() === "dark"
   const wipingRef = React.useRef(false)
 
-  const linkClass = "px-3 py-2 rounded-md hover:bg-accent/60"
+  const linkClass = "nav-link px-3 py-2 rounded-md hover:bg-accent/60"
+
+  // polish: scrollspy. The link of the section in view gets an underline.
+  const [active, setActive] = React.useState<string | null>(null)
+  React.useEffect(() => {
+    const sections = ["about", "projects", "terminal", "social"]
+    let frame = 0
+    const update = () => {
+      frame = 0
+      const doc = document.documentElement
+      if (window.scrollY + window.innerHeight >= doc.scrollHeight - 4) {
+        setActive("social")
+        return
+      }
+      const marker = window.innerHeight * 0.35
+      let current: string | null = null
+      for (const id of sections) {
+        const el = document.getElementById(id)
+        if (el && el.getBoundingClientRect().top <= marker) current = id
+      }
+      setActive(current)
+    }
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update)
+    }
+    update()
+    window.addEventListener("scroll", onScroll, { passive: true })
+    window.addEventListener("resize", onScroll)
+    return () => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener("scroll", onScroll)
+      window.removeEventListener("resize", onScroll)
+    }
+  }, [])
+  const current = (id: string) => (active === id ? ("location" as const) : undefined)
 
   const toggleThemeWithWipe = () => {
     if (wipingRef.current) return
@@ -69,10 +103,10 @@ export function Navbar() {
           Hilmy.
         </a>
         <div className="hidden md:flex items-center gap-1">
-          <a href="#about" className={linkClass} onClick={(e) => { e.preventDefault(); smoothScrollTo('#about') }}>About</a>
-          <a href="#projects" className={linkClass} onClick={(e) => { e.preventDefault(); smoothScrollTo('#projects') }}>Projects</a>
-          <a href="#terminal" className={linkClass} onClick={(e) => { e.preventDefault(); smoothScrollTo('#terminal') }}>Terminal</a>
-          <a href="#social" className={linkClass} onClick={(e) => { e.preventDefault(); smoothScrollTo('#social') }}>Social</a>
+          <a href="#about" className={linkClass} aria-current={current("about")} onClick={(e) => { e.preventDefault(); smoothScrollTo('#about') }}>About</a>
+          <a href="#projects" className={linkClass} aria-current={current("projects")} onClick={(e) => { e.preventDefault(); smoothScrollTo('#projects') }}>Projects</a>
+          <a href="#terminal" className={linkClass} aria-current={current("terminal")} onClick={(e) => { e.preventDefault(); smoothScrollTo('#terminal') }}>Terminal</a>
+          <a href="#social" className={linkClass} aria-current={current("social")} onClick={(e) => { e.preventDefault(); smoothScrollTo('#social') }}>Social</a>
           <Button
             variant="ghost"
             size="icon"
@@ -117,10 +151,10 @@ export function Navbar() {
       {open && (
         <div className="md:hidden border-t border-border bg-background">
           <div className="mx-auto max-w-6xl px-4 py-3 flex flex-col gap-2">
-            <a className={linkClass} href="#about" onClick={(e) => { e.preventDefault(); setOpen(false); smoothScrollTo('#about') }}>About</a>
-            <a className={linkClass} href="#projects" onClick={(e) => { e.preventDefault(); setOpen(false); smoothScrollTo('#projects') }}>Projects</a>
-            <a className={linkClass} href="#terminal" onClick={(e) => { e.preventDefault(); setOpen(false); smoothScrollTo('#terminal') }}>Terminal</a>
-            <a className={linkClass} href="#social" onClick={(e) => { e.preventDefault(); setOpen(false); smoothScrollTo('#social') }}>Social</a>
+            <a className={linkClass} href="#about" aria-current={current("about")} onClick={(e) => { e.preventDefault(); setOpen(false); smoothScrollTo('#about') }}>About</a>
+            <a className={linkClass} href="#projects" aria-current={current("projects")} onClick={(e) => { e.preventDefault(); setOpen(false); smoothScrollTo('#projects') }}>Projects</a>
+            <a className={linkClass} href="#terminal" aria-current={current("terminal")} onClick={(e) => { e.preventDefault(); setOpen(false); smoothScrollTo('#terminal') }}>Terminal</a>
+            <a className={linkClass} href="#social" aria-current={current("social")} onClick={(e) => { e.preventDefault(); setOpen(false); smoothScrollTo('#social') }}>Social</a>
             <Button
               variant="outline"
               onClick={toggleThemeWithWipe}

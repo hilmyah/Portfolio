@@ -18,28 +18,35 @@ export function Footer() {
       </div>
       <div className="relative z-10 mx-auto max-w-6xl px-4 py-10">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          {/* polish: link-underline. Labels get an underline that grows on hover (see .link-grow). */}
           <div className="flex flex-wrap items-center gap-3">
             {SOCIALS.github && (
               <a href={SOCIALS.github} target="_blank" rel="noreferrer" className="relative -rotate-1 rounded-md border border-border bg-background/70 px-3 py-1 text-sm font-medium transition-transform hover:-translate-y-1 hover:rotate-0 hover:shadow hover:bg-accent/60">
-                GitHub
+                <span className="link-grow">GitHub</span>
                 <span className="pointer-events-none absolute -right-2 -top-2 h-3 w-8 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat" />
               </a>
             )}
             {SOCIALS.linkedin && (
               <a href={SOCIALS.linkedin} target="_blank" rel="noreferrer" className="relative rotate-1 rounded-md border border-border bg-background/70 px-3 py-1 text-sm font-medium transition-transform hover:-translate-y-1 hover:rotate-0 hover:shadow hover:bg-accent/60">
-                LinkedIn
+                <span className="link-grow">LinkedIn</span>
                 <span className="pointer-events-none absolute -left-2 -bottom-2 h-3 w-8 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat" />
               </a>
             )}
             {SOCIALS.instagram && (
               <a href={SOCIALS.instagram} target="_blank" rel="noreferrer" className="relative -rotate-2 rounded-md border border-border bg-background/70 px-3 py-1 text-sm font-medium transition-transform hover:-translate-y-1 hover:rotate-0 hover:shadow hover:bg-accent/60">
-                Instagram
+                <span className="link-grow">Instagram</span>
                 <span className="pointer-events-none absolute -right-2 -bottom-2 h-3 w-8 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat" />
+              </a>
+            )}
+            {SOCIALS.facebook && (
+              <a href={SOCIALS.facebook} target="_blank" rel="noreferrer" className="relative rotate-1 rounded-md border border-border bg-background/70 px-3 py-1 text-sm font-medium transition-transform hover:-translate-y-1 hover:rotate-0 hover:shadow hover:bg-accent/60">
+                <span className="link-grow">Facebook</span>
+                <span className="pointer-events-none absolute -right-2 -top-2 h-3 w-8 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat" />
               </a>
             )}
             {SOCIALS.email && (
               <a href={`mailto:${SOCIALS.email}`} className="relative rotate-2 rounded-md border border-border bg-background/70 px-3 py-1 text-sm font-medium transition-transform hover:-translate-y-1 hover:rotate-0 hover:shadow hover:bg-accent/60">
-                Email
+                <span className="link-grow">Email</span>
                 <span className="pointer-events-none absolute -left-2 -top-2 h-3 w-8 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat" />
               </a>
             )}

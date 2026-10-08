@@ -1,6 +1,7 @@
 import * as React from "react"
 import { PROFILE } from "@/data"
 import { MusicPlayer } from "@/components/MusicPlayer"
+import { prefersReducedMotion } from "@/lib/theme"
 
 // Activity stickers as emojis (no text labels)
 const stickers = [
@@ -176,12 +177,49 @@ export function Hero() {
     }
     requestAnimationFrame(gen)
   }, [])
+
+  // polish: hero-tilt. The photo leans toward the cursor with a soft glare (mouse/trackpad only).
+  React.useEffect(() => {
+    const col = colRef.current
+    const card = cardRef.current
+    if (!col || !card) return
+    if (!window.matchMedia("(pointer: fine)").matches || prefersReducedMotion()) return
+    let frame = 0
+    const apply = (x: number, y: number) => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        card.style.setProperty("--tilt-x", `${(x * 7).toFixed(2)}deg`)
+        card.style.setProperty("--tilt-y", `${(-y * 7).toFixed(2)}deg`)
+        card.style.setProperty("--glare-x", `${(50 + x * 45).toFixed(1)}%`)
+        card.style.setProperty("--glare-y", `${(50 + y * 45).toFixed(1)}%`)
+      })
+    }
+    const onMove = (e: PointerEvent) => {
+      const r = card.getBoundingClientRect()
+      const x = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1))
+      const y = Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height) * 2 - 1))
+      card.dataset.tilting = "true"
+      apply(x, y)
+    }
+    const onLeave = () => {
+      delete card.dataset.tilting
+      apply(0, 0)
+    }
+    col.addEventListener("pointermove", onMove)
+    col.addEventListener("pointerleave", onLeave)
+    return () => {
+      cancelAnimationFrame(frame)
+      col.removeEventListener("pointermove", onMove)
+      col.removeEventListener("pointerleave", onLeave)
+    }
+  }, [])
+
   return (
     <section id="hero" className="relative mx-auto max-w-6xl px-4 py-10 md:py-16">
-      <div className="grid gap-8 md:grid-cols-2 items-start">
+      <div className="grid gap-8 lg:grid-cols-2 items-start">
         <div className="relative" ref={colRef}>
           <div
-            className="relative z-10 mx-auto aspect-[7/9] w-72 md:w-80 rounded-[12px] border border-border bg-muted overflow-hidden shadow-[0_25px_50px_-12px_rgb(0_0_0_/_45%)] rotate-[-2deg]"
+            className="hero-tilt relative z-10 mx-auto aspect-[7/9] w-72 md:w-80 rounded-[12px] border border-border bg-muted overflow-hidden shadow-[0_25px_50px_-12px_rgb(0_0_0_/_45%)] rotate-[-2deg]"
             aria-label="Portrait of Hilmy Adhyandra Hamzah"
             ref={cardRef}
           >

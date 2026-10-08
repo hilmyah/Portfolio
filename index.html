@@ -3,30 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" type="image/png" href="/icons/logo-temp.png" />
+    <title>Hilmy Adhyandra Hamzah</title>
+    <meta name="description" content="Hilmy Adhyandra Hamzah - Infrastructure and Systems. Linux, self-hosting, networking, automation." />
+    <meta name="theme-color" content="#111111" />
+    <link rel="canonical" href="https://hilmyah.my.id/" />
+    <link rel="icon" type="image/png" href="/icons/logo-temp.png" />
 
-  <meta name="description"
-  content="Hilmy Adhyandra Hamzah - Infrastructure and Systems. Linux, self-hosting, networking, automation."/>
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Hilmy Adhyandra Hamzah" />
+    <meta property="og:url" content="https://hilmyah.my.id/" />
+    <meta property="og:title" content="Hilmy Adhyandra Hamzah" />
+    <meta property="og:description" content="Infrastructure and Systems. Linux, self-hosting, networking, automation." />
+    <meta property="og:image" content="https://hilmyah.my.id/og.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Hilmy Adhyandra Hamzah, Infrastructure and Systems" />
+    <meta name="twitter:card" content="summary_large_image" />
 
-  <meta name="theme-color" content="#111111" />
-
-  <meta property="og:type" content="website" />
-  <meta property="og:title" content="Hilmy Adhyandra Hamzah" />
-  <meta property="og:description" content="Infrastructure and Systems. Linux, self-hosting, networking, automation." />
-  <meta name="twitter:card" content="summary" />
-  <!-- og:url and og:image need absolute URLs; add them once the site has a public domain -->
-
-  <title>Hilmy Adhyandra Hamzah</title>
-
-  <script>
-    // Apply the saved or OS-preferred theme before first paint to avoid a light flash.
-    try {
-      var t = localStorage.getItem('theme');
-      if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      if (t === 'dark') document.documentElement.classList.add('dark');
-    } catch (e) {}
-  </script>
-
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>

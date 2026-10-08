@@ -4,7 +4,8 @@
 //   POST /api/run   {"cmd": "dig", "args": ["-x", "1.1.1.1", "+short"]}
 //   GET  /api/health
 //
-// Commands: ping, dig, nslookup, host, traceroute (system binaries) and whois (built in, TCP 43).
+// Commands: ping, dig, nslookup, host, traceroute (system binaries), whois (built in, TCP 43)
+// and curl (built in: HTTP/HTTPS GET and HEAD only).
 // No dependencies; needs Node 18+. Listens on localhost only; nginx proxies /api/ to it.
 //
 // This is not a shell. Anonymous visitors trigger it, so:
@@ -16,7 +17,8 @@
 //   - each run has a deadline and an output cap; requests are rate limited
 import { spawn } from "node:child_process"
 import { lookup } from "node:dns/promises"
-import { createServer } from "node:http"
+import { createServer, request as httpRequest } from "node:http"
+import { request as httpsRequest } from "node:https"
 import { connect, isIP } from "node:net"
 
 const PORT = Number(process.env.NETAPI_PORT ?? 8787)
@@ -330,6 +332,180 @@ async function runWhois(args, write, signal) {
   return 0
 }
 
+// ---------------------------------------------------------------- curl (HTTP GET/HEAD, built in)
+// Not the curl binary: a minimal client so every hop, redirects included, goes through the same
+// address filter and is pinned to the IP that was checked (no DNS rebinding between check and connect).
+
+const CURL_PORTS = new Set([80, 443, 8000, 8080, 8443])
+const CURL_MAX_BODY = 64 * 1024
+const CURL_MAX_REDIRECTS = 5
+const CURL_BLOCKED_HEADERS = new Set(["host", "content-length", "transfer-encoding", "connection", "upgrade", "proxy-authorization", "te", "trailer"])
+
+function parseCurlArgs(args) {
+  const opts = { head: false, include: false, follow: false, verbose: false, silent: false, headers: [], agent: "curl/8 (hilmyah.my.id terminal)", maxTime: 10, url: undefined }
+  for (let i = 0; i < args.length; i++) {
+    let a = args[i]
+    if (a.startsWith("--")) {
+      const long = { "--head": "-I", "--include": "-i", "--location": "-L", "--verbose": "-v", "--silent": "-s", "--header": "-H", "--user-agent": "-A", "--max-time": "-m", "--request": "-X" }[a]
+      if (!long) throw new UserError(`curl: option '${a}' is not available here`)
+      a = long
+    }
+    if (/^-[IiLvs]{2,}$/.test(a)) {
+      for (const flag of a.slice(1)) args.splice(i + 1, 0, `-${flag}`)
+      continue
+    }
+    switch (a) {
+      case "-I": opts.head = true; break
+      case "-i": opts.include = true; break
+      case "-L": opts.follow = true; break
+      case "-v": opts.verbose = true; break
+      case "-s": opts.silent = true; break
+      case "-H": {
+        const header = String(args[++i] ?? "")
+        const match = header.match(/^([A-Za-z0-9-]{1,64}):\s?(.{0,512})$/)
+        if (!match) throw new UserError(`curl: invalid header '${header.slice(0, 80)}' (expected 'Name: value')`)
+        if (CURL_BLOCKED_HEADERS.has(match[1].toLowerCase())) throw new UserError(`curl: header '${match[1]}' cannot be set here`)
+        if (opts.headers.length >= 8) throw new UserError("curl: at most 8 headers")
+        opts.headers.push([match[1], match[2]])
+        break
+      }
+      case "-A": opts.agent = String(args[++i] ?? "").slice(0, 200); break
+      case "-m": opts.maxTime = intOption(args[++i], "max time", 1, 15); break
+      case "-X": {
+        const method = String(args[++i] ?? "").toUpperCase()
+        if (method === "HEAD") opts.head = true
+        else if (method !== "GET") throw new UserError(`curl: only GET and HEAD are available here, not ${method}`)
+        break
+      }
+      default:
+        if (a.startsWith("-")) throw new UserError(`curl: option '${a}' is not available here (allowed: -I -i -L -v -s -H -A -m -X GET|HEAD)`)
+        if (opts.url) throw new UserError("curl: only one URL can be given")
+        opts.url = a
+    }
+  }
+  if (!opts.url) throw new UserError("usage: curl [-I] [-i] [-L] [-v] [-s] [-H 'Name: value'] [-A agent] <url>")
+  return opts
+}
+
+function parseCurlUrl(raw, base) {
+  let url
+  try {
+    url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(raw) || base ? raw : `http://${raw}`, base)
+  } catch {
+    throw new UserError(`curl: '${String(raw).slice(0, 80)}' is not a valid URL`)
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") throw new UserError(`curl: protocol '${url.protocol.replace(":", "")}' is not available here (http and https only)`)
+  if (url.username || url.password) throw new UserError("curl: credentials in URLs are not allowed here")
+  const port = Number(url.port || (url.protocol === "https:" ? 443 : 80))
+  if (!CURL_PORTS.has(port)) throw new UserError(`curl: port ${port} is not available here (allowed: ${[...CURL_PORTS].join(", ")})`)
+  return { url, port }
+}
+
+function fetchOnce(url, port, target, opts, signal) {
+  return new Promise((resolve, reject) => {
+    const headers = { "user-agent": opts.agent, accept: "*/*", "accept-encoding": "identity" }
+    for (const [name, value] of opts.headers) headers[name.toLowerCase()] = value
+    const requester = url.protocol === "https:" ? httpsRequest : httpRequest
+    const req = requester(
+      {
+        host: url.hostname.replace(/^\[(.*)\]$/, "$1"),
+        port,
+        path: `${url.pathname}${url.search}`,
+        method: opts.head ? "HEAD" : "GET",
+        headers,
+        servername: isIP(url.hostname.replace(/^\[(.*)\]$/, "$1")) ? undefined : url.hostname,
+        // Connect to the address that passed the filter, whatever DNS says now.
+        lookup: (_host, options, callback) => {
+          if (options && options.all) callback(null, [{ address: target.address, family: target.family }])
+          else callback(null, target.address, target.family)
+        },
+        signal,
+        timeout: opts.maxTime * 1000,
+      },
+      (res) => {
+        const chunks = []
+        let size = 0
+        let truncated = false
+        res.on("data", (chunk) => {
+          if (size >= CURL_MAX_BODY) {
+            truncated = true
+            res.destroy()
+            return
+          }
+          chunks.push(chunk)
+          size += chunk.length
+        })
+        const finish = () => resolve({ res, body: Buffer.concat(chunks).subarray(0, CURL_MAX_BODY), truncated })
+        res.on("end", finish)
+        res.on("close", finish)
+        res.on("error", finish)
+      }
+    )
+    req.on("timeout", () => req.destroy(new Error(`timed out after ${opts.maxTime} s`)))
+    req.on("error", reject)
+    req.end()
+  })
+}
+
+function headerBlock(res) {
+  const lines = [`HTTP/${res.httpVersion} ${res.statusCode} ${res.statusMessage ?? ""}`.trimEnd()]
+  for (let i = 0; i < res.rawHeaders.length; i += 2) lines.push(`${res.rawHeaders[i]}: ${res.rawHeaders[i + 1]}`)
+  return lines
+}
+
+function looksLikeText(contentType, body) {
+  if (/^(text\/|application\/(json|xml|javascript|x-www-form-urlencoded|.*\+json|.*\+xml))/i.test(contentType ?? "")) return true
+  if (contentType) return false
+  return !body.subarray(0, 512).includes(0)
+}
+
+async function runCurl(args, write, signal) {
+  const opts = parseCurlArgs([...args])
+  let { url, port } = parseCurlUrl(opts.url)
+  for (let hop = 0; ; hop++) {
+    const target = await publicTarget(url.hostname)
+    if (opts.verbose) {
+      write(`* Connecting to ${url.hostname} (${target.address}) port ${port}\n`)
+      write(`> ${opts.head ? "HEAD" : "GET"} ${url.pathname}${url.search} HTTP/1.1\n> Host: ${url.host}\n> User-Agent: ${opts.agent}\n`)
+      for (const [name, value] of opts.headers) write(`> ${name}: ${value}\n`)
+      write(">\n")
+    }
+    let result
+    try {
+      result = await fetchOnce(url, port, target, opts, signal)
+    } catch (error) {
+      if (signal.aborted) return 130
+      write(`curl: (7) ${url.hostname}: ${error instanceof Error ? error.message : "request failed"}\n`)
+      return 7
+    }
+    const { res, body, truncated } = result
+    if (opts.verbose) write(headerBlock(res).map((l) => `< ${l}`).join("\n") + "\n<\n")
+    else if (opts.head || opts.include) write(headerBlock(res).join("\n") + "\n\n")
+
+    const location = res.headers.location
+    if (opts.follow && location && res.statusCode >= 300 && res.statusCode < 400) {
+      if (hop + 1 > CURL_MAX_REDIRECTS) {
+        write(`curl: (47) Maximum (${CURL_MAX_REDIRECTS}) redirects followed\n`)
+        return 47
+      }
+      ;({ url, port } = parseCurlUrl(location, url))
+      if (opts.verbose) write(`* Following redirect to ${url.href}\n`)
+      continue
+    }
+
+    if (!opts.head) {
+      if (looksLikeText(res.headers["content-type"], body)) {
+        write(body.toString("utf8"))
+        if (!body.toString("utf8").endsWith("\n")) write("\n")
+      } else {
+        write(`[binary content: ${res.headers["content-type"] ?? "unknown type"}, ${body.length}${truncated ? "+" : ""} bytes, not shown]\n`)
+      }
+      if (truncated) write(`[output truncated after ${CURL_MAX_BODY / 1024} KB]\n`)
+    }
+    return 0
+  }
+}
+
 // ---------------------------------------------------------------- rate limiting
 
 const hits = new Map()
@@ -432,7 +608,7 @@ async function handleRun(req, res) {
   }
   const cmd = String(body?.cmd ?? "").toLowerCase()
   const args = body?.args
-  const known = cmd === "whois" || Object.prototype.hasOwnProperty.call(builders, cmd)
+  const known = cmd === "whois" || cmd === "curl" || Object.prototype.hasOwnProperty.call(builders, cmd)
   if (!known) return sendJson(res, 404, { error: `${cmd.slice(0, 40) || "command"}: not available on this server` })
   if (!Array.isArray(args) || args.length > 16 || args.some((a) => typeof a !== "string" || a.length > 255 || /[\0\r\n]/.test(a))) {
     return sendJson(res, 400, { error: "invalid arguments" })
@@ -445,6 +621,20 @@ async function handleRun(req, res) {
 
   running += 1
   try {
+    if (cmd === "curl") {
+      // Parse before the stream opens so usage errors come back as plain JSON errors.
+      const opts = parseCurlArgs([...args])
+      parseCurlUrl(opts.url)
+      const stream = openStream(res)
+      try {
+        stream.end(await runCurl(args, stream.write, abort.signal))
+      } catch (error) {
+        stream.write(`${error instanceof UserError ? error.message : "curl: request failed"}\n`)
+        stream.end(1)
+      }
+      return
+    }
+
     if (cmd === "whois") {
       // Validate before the stream opens so usage errors come back as plain JSON errors.
       const probe = args.filter((a, i) => !a.startsWith("-") && args[i - 1] !== "-h")
@@ -494,7 +684,7 @@ async function handleRun(req, res) {
 const server = createServer((req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost")
   if (url.pathname === "/api/health" && req.method === "GET") {
-    return sendJson(res, 200, { ok: true, commands: ["whois", ...Object.keys(builders)].sort() })
+    return sendJson(res, 200, { ok: true, commands: ["curl", "whois", ...Object.keys(builders)].sort() })
   }
   if (url.pathname === "/api/run") {
     if (req.method !== "POST") return sendJson(res, 405, { error: "method not allowed" })

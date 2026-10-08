@@ -11,11 +11,12 @@ and stream their output back, so they behave like they do in a normal terminal.
 | `host` | system `host` | `-t TYPE`, `-a`, `-v`, `-4`, `-6`, optional server |
 | `traceroute` | system `traceroute` | `-m hops` (1 to 30), `-4`, `-6` |
 | `whois` | built in (TCP 43, follows IANA, registry and registrar referrals) | `-h server` |
+| `curl` | built in (HTTP/HTTPS, GET and HEAD only, ports 80, 443, 8000, 8080, 8443) | `-I`, `-i`, `-L`, `-v`, `-s`, `-H 'Name: value'`, `-A agent`, `-m seconds`, `-X GET\|HEAD` |
 
 Pipes (`| grep`, `head`, `tail`, `sort`, `uniq`, `wc`) are handled by the terminal in the browser, not here.
 
 The API is optional. Without it, `dig`, `whois` and `ping` fall back to browser-based lookups with fewer
-options, and `nslookup`, `host` and `traceroute` report that the backend is not reachable.
+options, and `nslookup`, `host`, `traceroute` and `curl` report that the backend is not reachable.
 
 ## What it is not
 
@@ -25,6 +26,9 @@ It is not a shell. Only the commands and flags above are accepted, and nothing p
   multicast addresses are refused, so visitors cannot probe the LAN behind the server.
 - DNS tools query `1.1.1.1` unless the visitor names another public resolver.
 - Private addresses in `traceroute` output are replaced with `[private]`.
+- `curl` checks every redirect target the same way and connects to the checked IP, so a hostname
+  that re-resolves to a private address between the check and the connection is still refused.
+  Response bodies are capped at 64 KB and binary content is summarised, not printed.
 - Each run has a deadline and a 96 KB output cap.
 - 12 requests per minute per client, 120 per minute overall, 4 concurrent runs.
 
@@ -41,7 +45,9 @@ curl -sN -X POST -H 'content-type: application/json' -d '{"cmd":"ping","args":["
 
 The second `curl` should print `data: "..."` lines containing `64 bytes from 1.1.1.1`.
 
-Add this inside the site's `server { ... }` block in nginx, above `location /`:
+The complete nginx site configuration, with this proxy, caching and security headers, is in
+`server/nginx/portfolio.conf`. If you keep your own configuration instead, add this inside its
+`server { ... }` block, above `location /`:
 
 ```nginx
 location /api/ {

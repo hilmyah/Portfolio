@@ -1,7 +1,7 @@
 // Network commands for the terminal.
 //
 // When the site's backend is deployed (server/netapi.mjs behind /api/), ping, dig, whois, nslookup,
-// host and traceroute run as the real tools on the server, with their usual flags, and the output
+// host, traceroute and curl run on the server, with their usual flags, and the output
 // is streamed here line by line.
 //
 // Without a backend (static hosting, dev server without a proxy) three of them still work from the
@@ -11,7 +11,7 @@
 //   ping   -> timed HTTPS HEAD requests (browsers cannot send ICMP)
 import type { CommandContext, TerminalLine, TerminalResult, Tone } from "@/lib/terminal"
 
-export const REMOTE_COMMANDS = ["ping", "dig", "whois", "nslookup", "host", "traceroute"] as const
+export const REMOTE_COMMANDS = ["ping", "dig", "whois", "nslookup", "host", "traceroute", "curl"] as const
 export type RemoteCommand = (typeof REMOTE_COMMANDS)[number]
 
 const line = (text: string, tone?: Tone, href?: string): TerminalLine => ({ text, tone, href })

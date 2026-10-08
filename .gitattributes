@@ -1,2 +1,4 @@
 server/*.mjs text eol=lf
 server/*.service text eol=lf
+server/nginx/*.conf text eol=lf
+public/theme-init.js text eol=lf

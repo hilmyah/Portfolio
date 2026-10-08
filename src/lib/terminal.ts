@@ -8,10 +8,11 @@ import {
   TERMINAL_COMMANDS,
   TOOLS,
 } from "@/data"
-import type { Project } from "@/data"
+import type { CommandGroup, Project } from "@/data"
 import { REMOTE_COMMANDS, networkCommand } from "@/lib/netCommands"
 import { applyFilter, isFilter, parsePipeline } from "@/lib/pipeline"
 import { getTheme, setTheme } from "@/lib/theme"
+import { HOME, completePath, displayPath, listDir, lookupPath, projectSlug, resolvePath } from "@/lib/vfs"
 import type { Theme } from "@/lib/theme"
 
 export type Tone = "default" | "muted" | "accent" | "success" | "error"
@@ -38,9 +39,12 @@ export const WELCOME_LINES: TerminalLine[] = [
 const line = (text: string, tone?: Tone, href?: string): TerminalLine => ({ text, tone, href })
 const blank = (): TerminalLine => ({ text: "" })
 
-export function projectSlug(project: Project): string {
-  return project.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
-}
+export { projectSlug }
+
+// Current directory of the virtual filesystem; one terminal per page, so module state is enough.
+let cwd = HOME
+export const getCwd = () => cwd
+export const getPromptPath = () => displayPath(cwd)
 
 function findProject(query: string): Project | undefined {
   const q = query.toLowerCase().trim()
@@ -62,6 +66,7 @@ function socialLines(): TerminalLine[] {
   if (SOCIALS.github) out.push(line(`${pad("github", 10)} ${SOCIALS.github}`, "default", SOCIALS.github))
   if (SOCIALS.linkedin) out.push(line(`${pad("linkedin", 10)} ${SOCIALS.linkedin}`, "default", SOCIALS.linkedin))
   if (SOCIALS.instagram) out.push(line(`${pad("instagram", 10)} ${SOCIALS.instagram}`, "default", SOCIALS.instagram))
+  if (SOCIALS.facebook) out.push(line(`${pad("facebook", 10)} ${SOCIALS.facebook}`, "default", SOCIALS.facebook))
   return out
 }
 
@@ -74,28 +79,41 @@ export type CommandContext = {
 type Handler = (args: string[], ctx: CommandContext) => TerminalResult | Promise<TerminalResult>
 
 const handlers: Record<string, Handler> = {
-  help: () => {
-    const width = Math.max(...TERMINAL_COMMANDS.map((c) => c.command.length)) + 2
+  help: (args) => {
+    if (args[0]) {
+      const name = args[0].toLowerCase()
+      const entry = TERMINAL_COMMANDS.find((c) => c.command === name)
+      if (!entry) {
+        const hint = isFilter(name) ? `'${name}' is a filter: use it after a pipe, e.g. whois ${SITE_DOMAIN} | ${name}` : "Type 'help' to list commands."
+        return { lines: [line(`help: no such command '${args[0]}'`, "error"), line(hint, "muted")] }
+      }
+      const out: TerminalLine[] = [line(`${entry.command} - ${entry.description}`, "accent"), blank(), line(`usage: ${entry.usage ?? entry.command}`)]
+      if (entry.examples?.length) out.push(blank(), line("examples:", "muted"), ...entry.examples.map((e) => line(`  ${e}`)))
+      if (entry.group === "network") {
+        out.push(blank(), line("Runs on the server that hosts this site. Private and LAN addresses are refused.", "muted"))
+      }
+      return { lines: out }
+    }
+    const groups: [CommandGroup, string][] = [
+      ["portfolio", "portfolio"],
+      ["files", "files"],
+      ["network", "network"],
+      ["shell", "shell"],
+    ]
     return {
       lines: [
-        line("Available commands:", "accent"),
-        ...TERMINAL_COMMANDS.map((c) => line(`  ${pad(c.command, width)}${c.description}`)),
+        line("Commands (help <command> shows usage and examples):", "accent"),
         blank(),
-        line("Arguments:", "muted"),
-        line("  projects [tag]", "muted"),
-        line("  project <id|name>", "muted"),
-        line("  open <id|name>", "muted"),
-        line("  theme [dark|light]", "muted"),
+        // Narrow screens get the group name on its own line so the command lists do not wrap mid-row.
+        ...groups.flatMap(([group, label]) => {
+          const names = TERMINAL_COMMANDS.filter((c) => c.group === group).map((c) => c.command).join("  ")
+          return window.matchMedia("(max-width: 640px)").matches
+            ? [line(label, "muted"), line(`  ${names}`)]
+            : [line(`  ${pad(label, 11)}${names}`)]
+        }),
         blank(),
-        line("Network tools run on the server with their usual flags:", "muted"),
-        line("  ping -c 3 github.com", "muted"),
-        line("  dig -x 1.1.1.1 @8.8.8.8 +short", "muted"),
-        line("  whois hilmyah.my.id | grep -i \"name server\"", "muted"),
-        line("  nslookup -type=MX hilmyah.my.id      host -t NS hilmyah.my.id", "muted"),
-        line("  traceroute -m 15 1.1.1.1", "muted"),
-        blank(),
-        line("Pipes: any command | grep, head, tail, sort, uniq, wc", "muted"),
-        line("Ctrl+C stops a running command, Ctrl+L clears the screen.", "muted"),
+        line("Pipes: <command> | grep, head, tail, sort, uniq, wc", "muted"),
+        line("Keys:  Tab completes, Up/Down history, Ctrl+C stops, Ctrl+L clears", "muted"),
       ],
     }
   },
@@ -166,7 +184,7 @@ const handlers: Record<string, Handler> = {
     return { lines: out }
   },
 
-  skills: () => {
+  tools: () => {
     const names = TOOLS.map((t) => t.name)
     const rows: TerminalLine[] = []
     for (let i = 0; i < names.length; i += 3) {
@@ -179,6 +197,90 @@ const handlers: Record<string, Handler> = {
     const out: TerminalLine[] = [line("Contact:", "accent")]
     if (SOCIALS.email) out.push(line(`${pad("email", 10)} ${SOCIALS.email}`, "default", `mailto:${SOCIALS.email}`))
     out.push(...socialLines())
+    return { lines: out }
+  },
+
+  pwd: () => ({ lines: [line(cwd)] }),
+
+  cd: (args) => {
+    if (args.length > 1) return { lines: [line("cd: too many arguments", "error")] }
+    const target = resolvePath(cwd, args[0] ?? "~")
+    const node = lookupPath(target)
+    if (!node) return { lines: [line(`cd: ${args[0]}: No such file or directory`, "error")] }
+    if (node.kind !== "dir") return { lines: [line(`cd: ${args[0]}: Not a directory`, "error")] }
+    cwd = target
+    return { lines: [] }
+  },
+
+  ls: (args) => {
+    const long = args.some((a) => /^-[a-z]*l/.test(a))
+    const bad = args.find((a) => a.startsWith("-") && !/^-[la]+$/.test(a))
+    if (bad) return { lines: [line(`ls: invalid option '${bad}' (supported: -l, -a)`, "error")] }
+    const paths = args.filter((a) => !a.startsWith("-"))
+    const out: TerminalLine[] = []
+    for (const [index, p] of (paths.length ? paths : ["."]).entries()) {
+      const node = lookupPath(resolvePath(cwd, p))
+      if (!node) {
+        out.push(line(`ls: cannot access '${p}': No such file or directory`, "error"))
+        continue
+      }
+      if (paths.length > 1) out.push(...(index ? [blank()] : []), line(`${p}:`, "muted"))
+      if (node.kind === "file") {
+        out.push(line(p))
+        continue
+      }
+      const entries = listDir(node)
+      if (long) {
+        const width = Math.max(1, ...entries.map(({ node: n }) => String(n.kind === "file" ? n.content.length : 0).length))
+        for (const { name, node: n } of entries) {
+          const size = n.kind === "file" ? n.content.length : 0
+          out.push(line(`${n.kind === "dir" ? "drwxr-xr-x" : "-rw-r--r--"}  ${String(size).padStart(width)}  ${name}${n.kind === "dir" ? "/" : ""}`, n.kind === "dir" ? "accent" : undefined))
+        }
+      } else {
+        out.push(...entries.map(({ name, node: n }) => line(`${name}${n.kind === "dir" ? "/" : ""}`, n.kind === "dir" ? "accent" : undefined)))
+      }
+    }
+    return { lines: out }
+  },
+
+  cat: (args) => {
+    if (args.length === 0) return { lines: [line("usage: cat <file>...  (try: ls, then cat about.md)", "error")] }
+    const out: TerminalLine[] = []
+    for (const p of args) {
+      const node = lookupPath(resolvePath(cwd, p))
+      if (!node) out.push(line(`cat: ${p}: No such file or directory`, "error"))
+      else if (node.kind === "dir") out.push(line(`cat: ${p}: Is a directory`, "error"))
+      else {
+        for (const text of node.content.replace(/\n$/, "").split("\n")) {
+          const url = text.match(/https?:\/\/\S+/)?.[0]
+          out.push(line(text, text.startsWith("#") ? "accent" : text.startsWith(">") ? "muted" : undefined, url))
+        }
+      }
+    }
+    return { lines: out }
+  },
+
+  tree: (args) => {
+    const start = resolvePath(cwd, args[0] ?? ".")
+    const root = lookupPath(start)
+    if (!root) return { lines: [line(`tree: ${args[0]}: No such file or directory`, "error")] }
+    if (root.kind !== "dir") return { lines: [line(args[0] ?? start)] }
+    const out: TerminalLine[] = [line(args[0] ?? ".", "accent")]
+    let dirs = 0
+    let files = 0
+    const walk = (node: typeof root, prefix: string) => {
+      const entries = listDir(node)
+      entries.forEach(({ name, node: child }, i) => {
+        const last = i === entries.length - 1
+        out.push(line(`${prefix}${last ? "└── " : "├── "}${name}${child.kind === "dir" ? "/" : ""}`, child.kind === "dir" ? "accent" : undefined))
+        if (child.kind === "dir") {
+          dirs += 1
+          walk(child, `${prefix}${last ? "    " : "│   "}`)
+        } else files += 1
+      })
+    }
+    walk(root, "")
+    out.push(blank(), line(`${dirs} ${dirs === 1 ? "directory" : "directories"}, ${files} ${files === 1 ? "file" : "files"}`, "muted"))
     return { lines: out }
   },
 
@@ -227,7 +329,7 @@ const handlers: Record<string, Handler> = {
 
   clear: () => ({ lines: [], clear: true }),
 
-  neofetch: () => {
+  fetch: () => {
     const github = SOCIALS.github?.replace(/^https?:\/\//, "")
     const title = `${PROMPT_USER}@${PROMPT_HOST}`
     const out: TerminalLine[] = [
@@ -314,10 +416,20 @@ export function complete(input: string): Completion {
   const command = parts[0].toLowerCase()
   const partial = parts.slice(1).join(" ").toLowerCase()
   let pool: string[] = []
-  if (command === "project" || command === "open") pool = PROJECTS.map(projectSlug)
+  if (command === "help") pool = TERMINAL_COMMANDS.map((c) => c.command)
+  else if (command === "project" || command === "open") pool = PROJECTS.map(projectSlug)
   else if (command === "theme") pool = ["dark", "light"]
+  else if (command === "curl") pool = [`https://${SITE_DOMAIN}`]
   else if ((REMOTE_COMMANDS as readonly string[]).includes(command)) pool = [SITE_DOMAIN]
   else if (command === "projects") pool = PROJECT_TAGS
+  else if (command === "cd" || command === "ls" || command === "cat" || command === "tree") {
+    const lastArg = parts[parts.length - 1]
+    const head = leading.slice(0, leading.length - lastArg.length)
+    const paths = completePath(cwd, lastArg, command === "cd")
+    if (paths.length === 0) return { value: input, candidates: [] }
+    if (paths.length === 1) return { value: `${head}${paths[0]}${paths[0].endsWith("/") ? "" : " "}`, candidates: [] }
+    return { value: `${head}${commonPrefix(paths)}`, candidates: paths.map((p) => p.slice(p.lastIndexOf("/", p.length - 2) + 1)) }
+  }
   const matches = pool.filter((v) => v.startsWith(partial))
   if (matches.length === 0) return { value: input, candidates: [] }
   if (matches.length === 1) return { value: `${command} ${matches[0]}`, candidates: [] }

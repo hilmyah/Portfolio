@@ -51,7 +51,7 @@ export function Projects() {
                 <span className="select-none">📁</span>
                 <span className={"relative -rotate-1 px-2 py-0.5 rounded border text-black " + noteClasses[idx % noteClasses.length]}>{folder}</span>
               </span>
-              <span className="text-sm text-muted-foreground">{groups[folder].items.length} files</span>
+              <span className="text-sm text-muted-foreground">{groups[folder].items.length} {groups[folder].items.length === 1 ? "file" : "files"}</span>
             </button>
             <div
               className={cn(

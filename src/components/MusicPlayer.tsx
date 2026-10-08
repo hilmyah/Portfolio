@@ -86,6 +86,8 @@ function MusicPlayerInner({ minimal = false }: PlayerProps) {
   })
 
   const audioRef = React.useRef<HTMLAudioElement | null>(null)
+  // Tracks played before the current one, so "previous" walks back through a shuffled order too.
+  const historyRef = React.useRef<number[]>([])
 
   const currentSong = SONGS[state.currentIndex]
 
@@ -120,32 +122,53 @@ function MusicPlayerInner({ minimal = false }: PlayerProps) {
     return `${m}:${s.toString().padStart(2, "0")}`
   }
 
-  const next = React.useCallback(() => {
-    setState((s) => {
-      const nextIndex = s.shuffle
-        ? Math.floor(Math.random() * SONGS.length)
-        : (s.currentIndex + 1) % SONGS.length
-      return { ...s, currentIndex: nextIndex, progress: 0 }
-    })
-  }, [])
+  /** Shuffle never picks the song that is already playing (when there is another one to pick). */
+  const pickNext = (s: AudioState) => {
+    if (!s.shuffle || SONGS.length < 2) return (s.currentIndex + 1) % SONGS.length
+    const others = SONGS.map((_, i) => i).filter((i) => i !== s.currentIndex)
+    return others[Math.floor(Math.random() * others.length)]
+  }
+
+  const restartCurrent = () => {
+    const a = audioRef.current
+    if (a) a.currentTime = 0
+    setState((s) => ({ ...s, progress: 0 }))
+  }
+
+  const goTo = (index: number, keepPlaying?: boolean) => {
+    if (index === state.currentIndex) return
+    historyRef.current = [...historyRef.current.slice(-49), state.currentIndex]
+    setState((s) => ({ ...s, currentIndex: index, progress: 0, isPlaying: keepPlaying ?? s.isPlaying }))
+  }
+
+  const next = () => {
+    const index = pickNext(state)
+    if (index === state.currentIndex) restartCurrent()
+    else goTo(index)
+  }
 
   const prev = () => {
-    setState((s) => ({
-      ...s,
-      currentIndex: (s.currentIndex - 1 + SONGS.length) % SONGS.length,
-      progress: 0,
-    }))
+    // Like most players: past the first few seconds, "previous" restarts the current song.
+    if (state.progress > 3) return restartCurrent()
+    const previous = historyRef.current.pop()
+    const index = previous ?? (state.currentIndex - 1 + SONGS.length) % SONGS.length
+    if (index === state.currentIndex) return restartCurrent()
+    setState((s) => ({ ...s, currentIndex: index, progress: 0 }))
   }
 
+  // With repeat on, the <audio loop> attribute replays the song and "ended" never fires.
   const onEnded = () => {
-    setState((s) => {
-      if (s.repeat) return { ...s, progress: 0, isPlaying: true }
-      const nextIndex = s.shuffle
-        ? Math.floor(Math.random() * SONGS.length)
-        : (s.currentIndex + 1) % SONGS.length
-      return { ...s, currentIndex: nextIndex, progress: 0 }
-    })
+    const index = pickNext(state)
+    if (index === state.currentIndex) {
+      restartCurrent()
+      audioRef.current?.play().catch(() => {})
+    } else {
+      goTo(index, true)
+    }
   }
+
+  const toggleClass = (active: boolean) =>
+    "relative " + (active ? "bg-accent text-foreground after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-current" : "text-muted-foreground")
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -169,11 +192,15 @@ function MusicPlayerInner({ minimal = false }: PlayerProps) {
       <CardHeader className="flex flex-col gap-4">
         <div className="grid gap-6 md:grid-cols-[220px_1fr]">
           <div className="space-y-4">
-            <div className={`relative aspect-square overflow-hidden rounded-md border border-border bg-muted ${state.isPlaying ? 'animate-wobble-soft shadow-lg' : ''}`}>
+            {/* polish: vinyl. A record slides out from behind the cover and spins while a song plays. */}
+            <div className="relative">
+            <span aria-hidden className="vinyl" data-playing={state.isPlaying} />
+            <div className={`relative z-10 aspect-square overflow-hidden rounded-md border border-border bg-muted ${state.isPlaying ? 'animate-wobble-soft shadow-lg' : ''}`}>
               <img src={currentSong.albumArt} alt="current album art" className="h-full w-full object-cover" />
               <span aria-hidden className="pointer-events-none absolute -left-1 -top-1 h-4 w-10 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat" />
               <span aria-hidden className="pointer-events-none absolute -right-1 -top-1 h-4 w-10 rotate-6 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat" />
               <span aria-hidden className="absolute right-3 top-3 h-16 w-0.5 bg-black/50 origin-top rotate-12 rounded-full" />
+            </div>
             </div>
           </div>
           <div className="min-w-0 self-center">
@@ -224,9 +251,9 @@ function MusicPlayerInner({ minimal = false }: PlayerProps) {
           {!minimal && <span className="w-10 text-xs tabular-nums text-right">{format(state.duration)}</span>}
         </div>
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => setState((s) => ({ ...s, shuffle: !s.shuffle }))} aria-pressed={state.shuffle} aria-label="Shuffle">
-              <Shuffle className={"h-5 w-5 " + (state.shuffle ? "text-primary" : "")} />
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Button variant="ghost" size="icon" className={toggleClass(state.shuffle)} onClick={() => setState((s) => ({ ...s, shuffle: !s.shuffle }))} aria-pressed={state.shuffle} aria-label="Shuffle" title={state.shuffle ? "Shuffle: on" : "Shuffle: off"}>
+              <Shuffle className="h-5 w-5" />
             </Button>
             <Button variant="ghost" size="icon" onClick={prev} aria-label="Previous">
               <SkipBack className="h-5 w-5" />
@@ -237,14 +264,14 @@ function MusicPlayerInner({ minimal = false }: PlayerProps) {
             <Button variant="ghost" size="icon" onClick={next} aria-label="Next">
               <SkipForward className="h-5 w-5" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => setState((s) => ({ ...s, repeat: !s.repeat }))} aria-pressed={state.repeat} aria-label="Repeat">
-              <Repeat className={"h-5 w-5 " + (state.repeat ? "text-primary" : "")} />
+            <Button variant="ghost" size="icon" className={toggleClass(state.repeat)} onClick={() => setState((s) => ({ ...s, repeat: !s.repeat }))} aria-pressed={state.repeat} aria-label="Repeat" title={state.repeat ? "Repeat this song: on" : "Repeat this song: off"}>
+              <Repeat className="h-5 w-5" />
             </Button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
             {!minimal && (
               <>
-                <Volume2 className="h-4 w-4" />
+                <Volume2 className="h-4 w-4 shrink-0" />
                 <input
                   type="range"
                   min={0}
@@ -253,7 +280,7 @@ function MusicPlayerInner({ minimal = false }: PlayerProps) {
                   value={state.volume}
                   onChange={(e) => setState((s) => ({ ...s, volume: Number(e.target.value) }))}
                   aria-label="Volume"
-                  className="h-2 w-28 cursor-pointer rounded-full bg-muted"
+                  className="h-2 w-full min-w-10 max-w-28 cursor-pointer rounded-full bg-muted"
                 />
               </>
             )}
@@ -264,6 +291,7 @@ function MusicPlayerInner({ minimal = false }: PlayerProps) {
           src={currentSong.src}
           onTimeUpdate={onTimeUpdate}
           onEnded={onEnded}
+          loop={state.repeat}
           preload="none"
         />
       </CardContent>

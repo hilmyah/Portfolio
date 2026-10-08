@@ -1,11 +1,12 @@
 import * as React from "react"
-import { SITE_DOMAIN, TERMINAL_COMMANDS } from "@/data"
+import { SITE_DOMAIN } from "@/data"
 import { cn } from "@/lib/utils"
 import { prefersReducedMotion } from "@/lib/theme"
 import { Reveal } from "@/components/Reveal"
 import {
   PROMPT_HOST,
   PROMPT_USER,
+  getPromptPath,
   WELCOME_LINES,
   complete,
   runCommand,
@@ -15,6 +16,8 @@ import type { TerminalLine, Tone } from "@/lib/terminal"
 type Entry = {
   id: number
   input?: string
+  /** Directory shown in this entry's prompt, as it was when the command ran. */
+  path?: string
   lines: TerminalLine[]
 }
 
@@ -26,28 +29,23 @@ const toneClass: Record<Tone, string> = {
   error: "text-rose-300",
 }
 
-// Commands that need an argument get a ready-made example instead of a bare chip.
-const NEEDS_ARGUMENT = new Set(["project", "open", "ping", "dig", "nslookup", "host", "whois", "traceroute"])
-const QUICK_COMMANDS = [
-  ...TERMINAL_COMMANDS.map((c) => c.command).filter((c) => !NEEDS_ARGUMENT.has(c)),
-  `dig ${SITE_DOMAIN}`,
-  `whois ${SITE_DOMAIN}`,
-  `ping ${SITE_DOMAIN}`,
-]
+// A short, fixed set of starting points. Everything else is discoverable through `help`,
+// so adding commands does not grow this row.
+const SUGGESTIONS = ["help", "clear", "fetch", "ls", `whois ${SITE_DOMAIN}`]
 
 // closed: not yet scrolled into view. opening: window unrolls. typing: the intro command types itself.
 type Phase = "closed" | "opening" | "typing" | "ready"
 
-const INTRO_COMMAND = "neofetch"
+const INTRO_COMMAND = "fetch"
 const OPEN_DURATION_MS = 1050
 const TYPE_INTERVAL_MS = 85
 
-function Prompt() {
+function Prompt({ path }: { path: string }) {
   return (
     <span className="shrink-0 select-none">
       <span className="text-emerald-300">{PROMPT_USER}@{PROMPT_HOST}</span>
       <span className="text-neutral-500">:</span>
-      <span className="text-sky-300">~</span>
+      <span className="text-sky-300">{path}</span>
       <span className="text-neutral-500">$</span>
     </span>
   )
@@ -109,7 +107,8 @@ export function Terminal() {
     }
 
     // The entry is added first so a command can print progress before it finishes.
-    setEntries((prev) => [...prev, { id, input: raw, lines: [] }])
+    const path = getPromptPath()
+    setEntries((prev) => [...prev, { id, input: raw, path, lines: [] }])
     if (input && record) setHistory((prev) => (prev[prev.length - 1] === input ? prev : [...prev, input]))
     setHistoryIndex(null)
     draft.current = ""
@@ -205,7 +204,7 @@ export function Terminal() {
         running.current.abort()
       } else if (value) {
         const id = nextId.current++
-        setEntries((prev) => [...prev, { id, input: `${value}^C`, lines: [] }])
+        setEntries((prev) => [...prev, { id, input: `${value}^C`, path: getPromptPath(), lines: [] }])
         setValue("")
         setHistoryIndex(null)
       }
@@ -229,7 +228,7 @@ export function Terminal() {
         const id = nextId.current++
         setEntries((prev) => [
           ...prev,
-          { id, input: value, lines: [{ text: result.candidates.join("  "), tone: "muted" }] },
+          { id, input: value, path: getPromptPath(), lines: [{ text: result.candidates.join("  "), tone: "muted" }] },
         ])
       }
       return
@@ -274,12 +273,12 @@ export function Terminal() {
       <Reveal>
         <h2 className="font-black text-2xl md:text-3xl mb-2 underline-scribble inline-block">Terminal</h2>
         <p className="mb-6 text-sm text-muted-foreground">
-          The same portfolio, through a shell. Type a command or pick one below.
+          The same portfolio, through a shell. Type a command, or start with help.
         </p>
       </Reveal>
 
-      {/* min-height reserves the open size (26rem body + 40px title bar + 2px border) so nothing below shifts */}
-      <div ref={windowRef} className="terminal-window relative min-h-[calc(26rem+42px)]" data-open={phase !== "closed"}>
+      {/* min-height reserves the open size (26rem body + two 40px bars + 2px border) so nothing below shifts */}
+      <div ref={windowRef} className="terminal-window relative min-h-[calc(26rem+82px)]" data-open={phase !== "closed"}>
         <span aria-hidden className="pointer-events-none absolute -left-2 -top-2 z-10 h-5 w-14 -rotate-6 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat" />
         <span aria-hidden className="pointer-events-none absolute -right-2 -top-2 z-10 h-5 w-14 rotate-6 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat" />
 
@@ -289,24 +288,26 @@ export function Terminal() {
             <span aria-hidden className="h-3 w-3 rounded-full bg-amber-300/80" />
             <span aria-hidden className="h-3 w-3 rounded-full bg-emerald-400/80" />
             <span className="ml-2 truncate font-mono text-xs text-neutral-400">
-              {PROMPT_USER}@{PROMPT_HOST}: ~
+              {PROMPT_USER}@{PROMPT_HOST}: {getPromptPath()}
             </span>
           </div>
 
           <div className="terminal-body">
           <div>
           <span aria-hidden className="terminal-sweep" />
+          {/* polish: crt. Faint scanlines, vignette and phosphor glow over the screen. */}
+          <span aria-hidden className="terminal-crt" />
           <div
             ref={scrollRef}
             onClick={focusInput}
-            className="h-[26rem] cursor-text overflow-y-auto px-4 py-3 font-mono text-[13px] leading-[1.5] md:text-sm"
+            className="terminal-glow h-[26rem] cursor-text overflow-y-auto px-4 py-3 font-mono text-[13px] leading-[1.5] md:text-sm"
           >
             <div role="log" aria-live="polite" aria-label="Terminal output">
               {entries.map((entry) => (
                 <div key={entry.id} className="mb-2">
                   {entry.input !== undefined && (
                     <div className="flex gap-2">
-                      <Prompt />
+                      <Prompt path={entry.path ?? "~"} />
                       <span className="whitespace-pre-wrap break-all text-neutral-100">{entry.input}</span>
                     </div>
                   )}
@@ -319,7 +320,7 @@ export function Terminal() {
 
             {!ready && (
               <div className="flex items-center gap-2" aria-hidden>
-                <Prompt />
+                <Prompt path={getPromptPath()} />
                 <span className="text-neutral-100">
                   {typed}
                   <span className="terminal-cursor" />
@@ -327,7 +328,7 @@ export function Terminal() {
               </div>
             )}
             <label className={cn("flex items-center gap-2", !ready && "hidden")}>
-              {busy ? <span aria-hidden className="terminal-cursor" /> : <Prompt />}
+              {busy ? <span aria-hidden className="terminal-cursor" /> : <Prompt path={getPromptPath()} />}
               <span className="sr-only">Terminal command</span>
               <input
                 ref={inputRef}
@@ -351,33 +352,36 @@ export function Terminal() {
               />
             </label>
           </div>
+          <div className="flex h-10 items-center gap-1.5 overflow-x-auto border-t border-neutral-800 bg-neutral-900 px-3 [scrollbar-width:none]">
+            {busy ? (
+              <button
+                type="button"
+                onClick={() => running.current?.abort()}
+                className="shrink-0 rounded px-2 py-0.5 font-mono text-xs text-rose-300 ring-1 ring-rose-400/40 transition-colors hover:bg-rose-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+              >
+                ^C stop
+              </button>
+            ) : (
+              <span className="shrink-0 pr-1 font-mono text-[11px] text-neutral-500">try</span>
+            )}
+            {SUGGESTIONS.map((command) => (
+              <button
+                key={command}
+                type="button"
+                onClick={() => execute(command)}
+                disabled={!ready || busy}
+                className="shrink-0 rounded px-2 py-0.5 font-mono text-xs text-neutral-300 ring-1 ring-neutral-700 transition-colors hover:bg-neutral-800 hover:text-amber-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:opacity-40"
+              >
+                {command}
+              </button>
+            ))}
           </div>
           </div>
+          </div>
+
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        {QUICK_COMMANDS.map((command) => (
-          <button
-            key={command}
-            type="button"
-            onClick={() => execute(command)}
-            disabled={!ready || busy}
-            className="disabled:opacity-60 rounded-md border border-border bg-card px-2.5 py-1 font-mono text-xs transition-transform hover:-translate-y-0.5 hover:bg-accent/60 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {command}
-          </button>
-        ))}
-        {busy && (
-          <button
-            type="button"
-            onClick={() => running.current?.abort()}
-            className="rounded-md border border-rose-300 bg-rose-100 px-2.5 py-1 font-mono text-xs text-rose-900 transition-transform hover:-translate-y-0.5 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            ^C stop
-          </button>
-        )}
-      </div>
     </section>
   )
 }
