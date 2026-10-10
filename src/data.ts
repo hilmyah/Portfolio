@@ -107,7 +107,7 @@ export const TOOLS: Tool[] = [
   { name: "VirtualBox", icon: "/icons/virtualbox.svg" },
   { name: "VMware", icon: "/icons/vmware.svg" },
   { name: "Mikrotik", icon: "/icons/mikrotik.svg" },
-  { name: "Plesk", icon: "/icons/plesk.svg" },
+  { name: "Cloudflare", icon: "/icons/cloudflare.svg" },
 ]
 
 export const PROJECTS: Project[] = [

@@ -208,7 +208,7 @@ function MusicPlayerInner({ minimal = false }: PlayerProps) {
               <>
                 <div className="relative inline-block -rotate-1 rounded-md border border-border bg-accent/40 px-3 py-2 shadow">
                   <p className="font-handwriting text-lg md:text-2xl italic leading-snug" aria-live="polite">
-                    {currentSong.lyric?.trim() ? `“${currentSong.lyric}”` : 'Add ur favorite lyric in src/data.ts (SONGS[].lyric)'}
+                    {currentSong.lyric?.trim() ? `“${currentSong.lyric}”` : 'Speak your mind, and let the music play.'}
                   </p>
                 </div>
                 <div className="mt-3 flex items-end gap-3">
@@ -297,4 +297,4 @@ function MusicPlayerInner({ minimal = false }: PlayerProps) {
       </CardContent>
     </Card>
   )
-}
+}
