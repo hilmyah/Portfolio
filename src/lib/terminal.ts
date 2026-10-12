@@ -419,7 +419,6 @@ export function complete(input: string): Completion {
   if (command === "help") pool = TERMINAL_COMMANDS.map((c) => c.command)
   else if (command === "project" || command === "open") pool = PROJECTS.map(projectSlug)
   else if (command === "theme") pool = ["dark", "light"]
-  else if (command === "curl") pool = [`https://${SITE_DOMAIN}`]
   else if ((REMOTE_COMMANDS as readonly string[]).includes(command)) pool = [SITE_DOMAIN]
   else if (command === "projects") pool = PROJECT_TAGS
   else if (command === "cd" || command === "ls" || command === "cat" || command === "tree") {

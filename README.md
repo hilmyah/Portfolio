@@ -40,7 +40,7 @@ The terminal section understands:
 - `help` lists everything; `help <command>` shows usage and examples
 - portfolio commands: `about`, `projects`, `project <name>`, `open <name>`, `tools`, `contact`, `fetch`, `theme`
 - a read-only virtual filesystem: `ls`, `cd`, `cat`, `pwd`, `tree`
-- network tools: `ping`, `dig`, `nslookup`, `host`, `traceroute`, `whois`, `curl`
+- network tools: `ping`, `dig`, `nslookup`, `host`, `traceroute`, `whois`
 - pipes into `grep`, `head`, `tail`, `sort`, `uniq`, `wc`
 
 ## Deployment

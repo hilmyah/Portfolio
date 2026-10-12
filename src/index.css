@@ -377,6 +377,17 @@ html.is-scrolling *::-webkit-scrollbar-thumb {
 }
 @keyframes terminalBlink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
 
+/* music player seek bar: the played part (left of the thumb) shows the album-cover gradient
+   from public/img/album1.svg; the rest stays muted. --p is set inline from the progress. */
+.seek-fill {
+  --seek-from: #b5c0ff;
+  --seek-to: #ffd6e0;
+  background:
+    linear-gradient(to right, transparent var(--p, 0%), var(--color-muted) var(--p, 0%)),
+    linear-gradient(to right, var(--seek-from), var(--seek-to));
+}
+.seek-fill::-moz-range-track { background: transparent; }
+
 /* ---------------------------------------------------------------- polish
    Each block below is optional decoration. Search for "polish:" to find the matching component code. */
 

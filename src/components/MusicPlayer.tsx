@@ -69,6 +69,10 @@ type AudioState = {
 
 type PlayerProps = { minimal?: boolean }
 
+/** With a single song, shuffle has nothing to mix: the button stays off and explains why instead. */
+const SINGLE_TRACK = SONGS.length < 2
+const SHUFFLE_HINT = "There's only 1 song, so shuffle isn't needed."
+
 export function MusicPlayer(props: PlayerProps) {
   if (SONGS.length === 0) return null
   return <MusicPlayerInner {...props} />
@@ -86,6 +90,16 @@ function MusicPlayerInner({ minimal = false }: PlayerProps) {
   })
 
   const audioRef = React.useRef<HTMLAudioElement | null>(null)
+  // Shuffle hint: shown on hover (mouse) or for a moment after a tap/click (touch screens have no hover).
+  const [shuffleHint, setShuffleHint] = React.useState(false)
+  const hintTimer = React.useRef<number | undefined>(undefined)
+  const hintId = React.useId()
+  React.useEffect(() => () => window.clearTimeout(hintTimer.current), [])
+  const flashShuffleHint = () => {
+    setShuffleHint(true)
+    window.clearTimeout(hintTimer.current)
+    hintTimer.current = window.setTimeout(() => setShuffleHint(false), 2500)
+  }
   // Tracks played before the current one, so "previous" walks back through a shuffled order too.
   const historyRef = React.useRef<number[]>([])
 
@@ -157,11 +171,12 @@ function MusicPlayerInner({ minimal = false }: PlayerProps) {
   }
 
   // With repeat on, the <audio loop> attribute replays the song and "ended" never fires.
+  // With repeat off and nothing else to play (one song), it plays once and stops at the start.
   const onEnded = () => {
     const index = pickNext(state)
     if (index === state.currentIndex) {
       restartCurrent()
-      audioRef.current?.play().catch(() => {})
+      setState((s) => ({ ...s, isPlaying: false }))
     } else {
       goTo(index, true)
     }
@@ -240,6 +255,7 @@ function MusicPlayerInner({ minimal = false }: PlayerProps) {
       <CardContent className="space-y-3">
         <div className="flex items-center gap-2">
           {!minimal && <span className="w-10 text-xs tabular-nums">{format(state.progress)}</span>}
+          {/* The played part of the bar shows the album-cover gradient (.seek-fill in index.css). */}
           <Slider
             min={0}
             max={Math.max(state.duration, 0.00001)}
@@ -247,14 +263,33 @@ function MusicPlayerInner({ minimal = false }: PlayerProps) {
             value={state.progress}
             onChange={(e) => seek(Number((e.target as HTMLInputElement).value))}
             aria-label="Seek"
+            className="seek-fill"
+            style={{ "--p": `${state.duration > 0 ? Math.min(100, (state.progress / state.duration) * 100) : 0}%` } as React.CSSProperties}
           />
           {!minimal && <span className="w-10 text-xs tabular-nums text-right">{format(state.duration)}</span>}
         </div>
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1 sm:gap-2">
-            <Button variant="ghost" size="icon" className={toggleClass(state.shuffle)} onClick={() => setState((s) => ({ ...s, shuffle: !s.shuffle }))} aria-pressed={state.shuffle} aria-label="Shuffle" title={state.shuffle ? "Shuffle: on" : "Shuffle: off"}>
-              <Shuffle className="h-5 w-5" />
-            </Button>
+            {SINGLE_TRACK ? (
+              <span className="group relative inline-flex">
+                <Button variant="ghost" size="icon" className={toggleClass(false) + " cursor-help"} onClick={flashShuffleHint} aria-disabled="true" aria-label="Shuffle" aria-describedby={hintId}>
+                  <Shuffle className="h-5 w-5" />
+                </Button>
+                <span
+                  id={hintId}
+                  role="tooltip"
+                  data-show={shuffleHint}
+                  className="pointer-events-none absolute bottom-full left-0 z-20 mb-2 w-max max-w-[13rem] translate-y-1 rounded-md border border-border bg-popover px-2.5 py-1.5 text-xs leading-snug text-popover-foreground opacity-0 shadow-md transition duration-150 group-hover:translate-y-0 group-hover:opacity-100 group-has-[:focus-visible]:translate-y-0 group-has-[:focus-visible]:opacity-100 data-[show=true]:translate-y-0 data-[show=true]:opacity-100"
+                >
+                  {SHUFFLE_HINT}
+                  <span aria-hidden className="absolute left-3.5 top-full -mt-1 h-2 w-2 rotate-45 border-b border-r border-border bg-popover" />
+                </span>
+              </span>
+            ) : (
+              <Button variant="ghost" size="icon" className={toggleClass(state.shuffle)} onClick={() => setState((s) => ({ ...s, shuffle: !s.shuffle }))} aria-pressed={state.shuffle} aria-label="Shuffle" title={state.shuffle ? "Shuffle: on" : "Shuffle: off"}>
+                <Shuffle className="h-5 w-5" />
+              </Button>
+            )}
             <Button variant="ghost" size="icon" onClick={prev} aria-label="Previous">
               <SkipBack className="h-5 w-5" />
             </Button>

@@ -76,14 +76,6 @@ export const SONGS: Song[] = [
     albumArt: "/img/album1.svg",
     lyric: "",
   },
-  {
-    id: 2,
-    title: "Update",
-    artist: "Unknown Artist",
-    src: "/audio/update.mpeg",
-    albumArt: "/img/album1.svg",
-    lyric: "",
-  },
 ]
 
 export const TOOLS: Tool[] = [
@@ -206,7 +198,6 @@ export const TERMINAL_COMMANDS: TerminalCommand[] = [
   { command: "host", group: "network", description: "Query DNS records", usage: "host [-t TYPE] <name|ip> [server]", examples: ["host -t NS hilmyah.my.id"] },
   { command: "whois", group: "network", description: "Look up domain or IP registration", usage: "whois [-h server] <domain|ip>", examples: ['whois hilmyah.my.id | grep -i "name server"'] },
   { command: "traceroute", group: "network", description: "Trace the route to a host", usage: "traceroute [-m hops] [-4|-6] <host>", examples: ["traceroute -m 15 1.1.1.1"] },
-  { command: "curl", group: "network", description: "Fetch a URL over HTTP(S)", usage: "curl [-I] [-i] [-L] [-v] [-s] [-H 'Name: value'] [-A agent] <url>", examples: ["curl -I https://hilmyah.my.id", "curl -sL https://example.com | head -5"] },
 
   { command: "help", group: "shell", description: "List commands, or explain one", usage: "help [command]", examples: ["help dig"] },
   { command: "theme", group: "shell", description: "Switch light or dark theme", usage: "theme [dark|light]" },
