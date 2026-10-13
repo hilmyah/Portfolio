@@ -9,13 +9,17 @@
 //
 // This is not a shell. Anonymous visitors trigger it, so:
 //   - only the commands and flags listed below are accepted; nothing is passed through a shell
-//   - every host that a tool would connect to is resolved here first, and private, loopback,
-//     link-local, CGNAT and multicast addresses are refused, so the LAN cannot be probed
+//   - every host that a tool would connect to is resolved here first (through public resolvers,
+//     never the LAN's), and private, loopback, link-local, CGNAT and multicast addresses are
+//     refused, so the LAN cannot be probed; tools are never given options that make them pick
+//     further hosts on their own (no dig +trace)
+//   - only same-origin JSON requests are accepted, so other websites cannot make visitors'
+//     browsers run commands
 //   - DNS tools use a public resolver unless the visitor names another public one
 //   - private addresses in traceroute output are masked
 //   - each run has a deadline and an output cap; requests are rate limited
 import { spawn } from "node:child_process"
-import { lookup } from "node:dns/promises"
+import { Resolver } from "node:dns/promises"
 import { createServer } from "node:http"
 import { connect, isIP } from "node:net"
 
@@ -23,6 +27,10 @@ const PORT = Number(process.env.NETAPI_PORT ?? 8787)
 const HOST = process.env.NETAPI_HOST ?? "127.0.0.1"
 const BIN_DIR = process.env.NETAPI_BIN_DIR ?? "" // tests point this at stub binaries
 const DEFAULT_RESOLVER = process.env.NETAPI_RESOLVER ?? "1.1.1.1"
+// Host names are resolved through public resolvers, not the system one (often the home router),
+// so visitors cannot use this API to look up names that only exist on the LAN.
+const resolver = new Resolver({ timeout: 3000, tries: 2 })
+resolver.setServers([...new Set([DEFAULT_RESOLVER, "1.1.1.1", "8.8.8.8"])])
 // Test-only hooks: a whois port other than 43 and a host -> address map that skips the address filter.
 // Leave both unset in production.
 const WHOIS_PORT = Number(process.env.NETAPI_WHOIS_PORT ?? 43)
@@ -58,16 +66,34 @@ function isBlockedV4(ip) {
   return BLOCKED_V4.some(({ base, size }) => value >= base && value < base + size)
 }
 
+/** "2002:c0a8::1" -> [0x2002, 0xc0a8, 0, 0, 0, 0, 0, 1]; also handles a trailing dotted IPv4 part. */
+function expandV6(ip) {
+  let text = ip.toLowerCase().split("%")[0]
+  const dotted = text.match(/(\d+)\.(\d+)\.(\d+)\.(\d+)$/)
+  if (dotted) {
+    const [a, b, c, d] = dotted.slice(1).map(Number)
+    text = `${text.slice(0, -dotted[0].length)}${((a << 8) | b).toString(16)}:${((c << 8) | d).toString(16)}`
+  }
+  const [head, tail] = text.split("::")
+  const left = head ? head.split(":") : []
+  const right = tail ? tail.split(":") : []
+  const groups = tail === undefined ? left : [...left, ...Array(8 - left.length - right.length).fill("0"), ...right]
+  return groups.map((g) => parseInt(g || "0", 16))
+}
+
 function isBlockedV6(ip) {
-  const lower = ip.toLowerCase()
-  const mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/)
-  if (mapped) return isBlockedV4(mapped[1])
-  if (lower === "::" || lower === "::1") return true
-  const first = parseInt(lower.split(":")[0] || "0", 16)
-  if ((first & 0xfe00) === 0xfc00) return true // fc00::/7 unique local
-  if ((first & 0xffc0) === 0xfe80) return true // fe80::/10 link-local
-  if ((first & 0xff00) === 0xff00) return true // ff00::/8 multicast
-  if (lower.startsWith("::ffff:") || lower.startsWith("64:ff9b:")) return true // other v4-embedded forms
+  const g = expandV6(ip)
+  const v4 = (hi, lo) => `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`
+  if (g.slice(0, 6).every((x) => x === 0)) return true // ::, ::1 and IPv4-compatible ::a.b.c.d
+  if (g.slice(0, 5).every((x) => x === 0) && g[5] === 0xffff) return true // IPv4-mapped ::ffff:a.b.c.d
+  if (g[0] === 0x64 && g[1] === 0xff9b) return true // NAT64 64:ff9b::/96 and 64:ff9b:1::/48
+  if (g[0] === 0x2002) return isBlockedV4(v4(g[1], g[2])) // 6to4 carries an IPv4 address
+  if (g[0] === 0x2001 && g[1] === 0) return true // Teredo 2001::/32
+  if (g[0] === 0x2001 && g[1] === 0xdb8) return true // documentation 2001:db8::/32
+  if (g[0] === 0x100 && g[1] === 0 && g[2] === 0 && g[3] === 0) return true // discard 100::/64
+  if ((g[0] & 0xfe00) === 0xfc00) return true // fc00::/7 unique local
+  if ((g[0] & 0xffc0) === 0xfe80 || (g[0] & 0xffc0) === 0xfec0) return true // link-local, old site-local
+  if ((g[0] & 0xff00) === 0xff00) return true // ff00::/8 multicast
   return false
 }
 
@@ -92,24 +118,30 @@ function cleanHost(raw) {
     .replace(/\.$/, "")
 }
 
+async function resolvePublicDns(host) {
+  const [v4, v6] = await Promise.allSettled([resolver.resolve4(host), resolver.resolve6(host)])
+  return [
+    ...(v4.status === "fulfilled" ? v4.value.map((address) => ({ address, family: 4 })) : []),
+    ...(v6.status === "fulfilled" ? v6.value.map((address) => ({ address, family: 6 })) : []),
+  ]
+}
+
 /** Resolves a host the tool will connect to and returns a public { address, family }. */
 async function publicTarget(raw, wantFamily = 0) {
   const host = cleanHost(raw)
   if (Object.prototype.hasOwnProperty.call(TEST_HOSTS, host)) return { host, address: TEST_HOSTS[host], family: 4 }
-  let addresses
+  let usable
   if (isIP(host)) {
-    addresses = [{ address: host, family: isIP(host) }]
+    if (isBlockedAddress(host)) throw new UserError(`${host} is in a private or reserved address range`, 403)
+    usable = [{ address: host, family: isIP(host) }]
   } else if (HOSTNAME_RE.test(host)) {
-    try {
-      addresses = await lookup(host, { all: true })
-    } catch {
-      throw new UserError(`cannot resolve ${host}`, 422)
-    }
+    // One message whether the name does not exist or only points at private addresses, so the
+    // answer reveals nothing about which internal names exist.
+    usable = (await resolvePublicDns(host)).filter((a) => !isBlockedAddress(a.address))
+    if (usable.length === 0) throw new UserError(`${host} does not resolve to a public address`, 422)
   } else {
     throw new UserError(`'${String(raw).slice(0, 80)}' is not a valid host name or IP address`)
   }
-  let usable = addresses.filter((a) => !isBlockedAddress(a.address))
-  if (usable.length === 0) throw new UserError(`${host} is in a private or reserved address range`, 403)
   if (wantFamily) {
     usable = usable.filter((a) => a.family === wantFamily)
     if (usable.length === 0) throw new UserError(`${host} has no IPv${wantFamily} address`, 422)
@@ -143,8 +175,10 @@ const RECORD_TYPES = new Set(["A", "AAAA", "ANY", "CAA", "CNAME", "DNSKEY", "DS"
 const DIG_OPTIONS = new Set([
   "short", "noall", "all", "answer", "noanswer", "authority", "noauthority", "additional", "noadditional",
   "question", "noquestion", "comments", "nocomments", "stats", "nostats", "cmd", "nocmd", "tcp", "notcp",
-  "dnssec", "nodnssec", "multiline", "nomultiline", "recurse", "norecurse", "ttlid", "nottlid", "trace", "notrace",
+  "dnssec", "nodnssec", "multiline", "nomultiline", "recurse", "norecurse", "ttlid", "nottlid",
 ])
+// Deliberately missing: +trace. It makes dig query every name server along the delegation by
+// itself, at addresses the domain owner chooses (including private ones), past the filter above.
 
 const builders = {
   async ping(args) {
@@ -198,7 +232,7 @@ const builders = {
     return {
       bin: "dig",
       argv: [`@${server ?? DEFAULT_RESOLVER}`, ...question, ...argv, "+time=3", "+tries=1"],
-      deadline: argv.includes("+trace") ? 20000 : 10000,
+      deadline: 10000,
     }
   },
 
@@ -393,9 +427,10 @@ function readBody(req) {
   })
 }
 
-const PRIVATE_V4_IN_TEXT = /\b(?:\d{1,3}\.){3}\d{1,3}\b/g
+// Any run of hex digits, dots and colons is a candidate; only real private IPv4/IPv6 addresses are replaced.
+const ADDRESS_LIKE = /[0-9a-f.:]{2,}(?:%[\w.-]+)?/gi
 function maskPrivateAddresses(text) {
-  return text.replace(PRIVATE_V4_IN_TEXT, (ip) => (isIP(ip) === 4 && isBlockedV4(ip) ? "[private]" : ip))
+  return text.replace(ADDRESS_LIKE, (token) => (isIP(token) && isBlockedAddress(token) ? "[private]" : token))
 }
 
 /** Output is streamed as server-sent events so it passes through nginx and Cloudflare unbuffered. */
@@ -424,6 +459,12 @@ function openStream(res) {
 }
 
 async function handleRun(req, res) {
+  // A cross-site page can only send "simple" requests without a CORS preflight, and this API answers
+  // no preflight, so requiring JSON keeps other websites from triggering runs from visitors' browsers.
+  const contentType = String(req.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase()
+  if (contentType !== "application/json") return sendJson(res, 415, { error: "expected an application/json body" })
+  const fetchSite = req.headers["sec-fetch-site"]
+  if (fetchSite && fetchSite !== "same-origin" && fetchSite !== "none") return sendJson(res, 403, { error: "cross-site requests are not allowed" })
   let body
   try {
     body = JSON.parse(await readBody(req))

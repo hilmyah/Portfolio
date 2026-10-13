@@ -6,7 +6,7 @@ and stream their output back, so they behave like they do in a normal terminal.
 | Command | Runs | Flags accepted |
 |---|---|---|
 | `ping` | system `ping` (ICMP) | `-c count` (1 to 10), `-4`, `-6` |
-| `dig` | system `dig` | `@server`, `-x ip`, `-t type`, `-4`, `-6`, common `+options` such as `+short`, `+trace`, `+noall +answer` |
+| `dig` | system `dig` | `@server`, `-x ip`, `-t type`, `-4`, `-6`, common `+options` such as `+short`, `+noall +answer` (not `+trace`, see below) |
 | `nslookup` | system `nslookup` | `-type=TYPE`, optional server |
 | `host` | system `host` | `-t TYPE`, `-a`, `-v`, `-4`, `-6`, optional server |
 | `traceroute` | system `traceroute` | `-m hops` (1 to 30), `-4`, `-6` |
@@ -21,10 +21,19 @@ options, and `nslookup`, `host` and `traceroute` report that the backend is not 
 
 It is not a shell. Only the commands and flags above are accepted, and nothing passes through `sh`.
 
-- Every host a tool would connect to is resolved by the API first. Private, loopback, link-local, CGNAT and
-  multicast addresses are refused, so visitors cannot probe the LAN behind the server.
+- Every host a tool would connect to is resolved by the API first, through public resolvers (never the
+  LAN's), and the resolved address is what the tool receives. Private, loopback, link-local, CGNAT,
+  multicast and IPv6 forms that embed them (IPv4-mapped, NAT64, 6to4, Teredo) are refused, so visitors
+  cannot probe the LAN behind the server. A name that does not exist and a name that only points at
+  private addresses get the same answer.
+- Tools are never given options that make them choose further hosts on their own. That is why `dig +trace`
+  is not offered: it would query whatever name servers a domain owner lists, private addresses included.
+- The systemd unit repeats the address rule in the kernel (`IPAddressDeny=`), so even a bug in the filter
+  cannot reach private ranges, and it hides the home directory except this folder.
 - DNS tools query `1.1.1.1` unless the visitor names another public resolver.
-- Private addresses in `traceroute` output are replaced with `[private]`.
+- Private addresses (IPv4 and IPv6) in `traceroute` output are replaced with `[private]`.
+- Only `application/json` POSTs from the site itself are accepted, so other websites cannot make their
+  visitors' browsers run commands here.
 - Each run has a deadline and a 96 KB output cap.
 - 12 requests per minute per client, 120 per minute overall, 4 concurrent runs.
 
@@ -35,6 +44,7 @@ apt install bind9-dnsutils bind9-host traceroute iputils-ping
 cp /home/hilmy/projects/Portfolio/server/hilmy-netapi.service /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now hilmy-netapi
+systemd-analyze security hilmy-netapi   # exposure level should be about 1.6 (OK)
 curl -s http://127.0.0.1:8787/api/health
 curl -sN -X POST -H 'content-type: application/json' -d '{"cmd":"ping","args":["-c","2","1.1.1.1"]}' http://127.0.0.1:8787/api/run
 ```

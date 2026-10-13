@@ -12,17 +12,40 @@ Environment=NETAPI_PORT=8787
 Restart=on-failure
 RestartSec=3
 
-# The service only needs to read its own code and start `ping`.
-NoNewPrivileges=true
+# Files: /home is an empty tmpfs for this service except its own folder, mounted read-only,
+# so even a compromised process cannot read the rest of the home directory (SSH keys and so on).
+ProtectHome=tmpfs
+BindReadOnlyPaths=/home/hilmy/projects/Portfolio/server
 ProtectSystem=strict
-ProtectHome=read-only
 PrivateTmp=true
 PrivateDevices=true
+UMask=0077
+
+# Network: a kernel-level backstop for the address filter in netapi.mjs. No traffic to or from
+# private, CGNAT, link-local or multicast addresses. localhost stays allowed because nginx
+# connects over 127.0.0.1.
+IPAddressAllow=localhost
+IPAddressDeny=10.0.0.0/8 100.64.0.0/10 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16 fc00::/7 link-local multicast
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+
+# Privileges and kernel interfaces it never needs. ping works without capabilities through
+# unprivileged ICMP sockets (net.ipv4.ping_group_range).
+NoNewPrivileges=true
+CapabilityBoundingSet=
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+ProtectProc=invisible
+ProtectClock=true
+ProtectHostname=true
 ProtectKernelTunables=true
 ProtectKernelModules=true
+ProtectKernelLogs=true
 ProtectControlGroups=true
-RestrictSUIDSGID=true
-LockPersonality=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
 MemoryMax=128M
 TasksMax=32
 
