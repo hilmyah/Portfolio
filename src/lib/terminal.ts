@@ -11,6 +11,8 @@ import {
 import type { CommandGroup, Project } from "@/data"
 import { REMOTE_COMMANDS, networkCommand } from "@/lib/netCommands"
 import { applyFilter, isFilter, parsePipeline } from "@/lib/pipeline"
+// bait: "nice try" answers for attack-style input (see src/lib/baits.ts)
+import { baitForCommand, baitForNetworkTarget, baitForOperator, baitForPath, baitForPayload } from "@/lib/baits"
 import { getTheme, setTheme } from "@/lib/theme"
 import { HOME, completePath, displayPath, listDir, lookupPath, projectSlug, resolvePath } from "@/lib/vfs"
 import type { Theme } from "@/lib/theme"
@@ -206,7 +208,7 @@ const handlers: Record<string, Handler> = {
     if (args.length > 1) return { lines: [line("cd: too many arguments", "error")] }
     const target = resolvePath(cwd, args[0] ?? "~")
     const node = lookupPath(target)
-    if (!node) return { lines: [line(`cd: ${args[0]}: No such file or directory`, "error")] }
+    if (!node) return { lines: baitForPath("cd", args[0], target) ?? [line(`cd: ${args[0]}: No such file or directory`, "error")] } // bait:
     if (node.kind !== "dir") return { lines: [line(`cd: ${args[0]}: Not a directory`, "error")] }
     cwd = target
     return { lines: [] }
@@ -221,7 +223,7 @@ const handlers: Record<string, Handler> = {
     for (const [index, p] of (paths.length ? paths : ["."]).entries()) {
       const node = lookupPath(resolvePath(cwd, p))
       if (!node) {
-        out.push(line(`ls: cannot access '${p}': No such file or directory`, "error"))
+        out.push(...(baitForPath("ls", p, resolvePath(cwd, p)) ?? [line(`ls: cannot access '${p}': No such file or directory`, "error")])) // bait:
         continue
       }
       if (paths.length > 1) out.push(...(index ? [blank()] : []), line(`${p}:`, "muted"))
@@ -248,7 +250,7 @@ const handlers: Record<string, Handler> = {
     const out: TerminalLine[] = []
     for (const p of args) {
       const node = lookupPath(resolvePath(cwd, p))
-      if (!node) out.push(line(`cat: ${p}: No such file or directory`, "error"))
+      if (!node) out.push(...(baitForPath("cat", p, resolvePath(cwd, p)) ?? [line(`cat: ${p}: No such file or directory`, "error")])) // bait:
       else if (node.kind === "dir") out.push(line(`cat: ${p}: Is a directory`, "error"))
       else {
         for (const text of node.content.replace(/\n$/, "").split("\n")) {
@@ -350,6 +352,11 @@ function dispatch(argv: string[], ctx: CommandContext): TerminalResult | Promise
   const [rawName, ...args] = argv
   const name = rawName.toLowerCase()
   const handler = Object.prototype.hasOwnProperty.call(handlers, name) ? handlers[name] : undefined
+  // bait: classic first moves (sudo, rm -rf, nmap, private IPs) get a "nice try"
+  const bait = handler
+    ? (REMOTE_COMMANDS as readonly string[]).includes(name) ? baitForNetworkTarget(name, args) : null
+    : baitForCommand(rawName, args)
+  if (bait) return { lines: bait }
   if (!handler) {
     const hint = isFilter(name)
       ? `'${name}' works after a pipe, for example: whois ${SITE_DOMAIN} | ${name === "grep" ? "grep -i registrar" : name}`
@@ -361,13 +368,17 @@ function dispatch(argv: string[], ctx: CommandContext): TerminalResult | Promise
 
 export function runCommand(input: string, ctx: CommandContext): TerminalResult | Promise<TerminalResult> {
   if (!input.trim()) return { lines: [] }
+  const payload = baitForPayload(input) // bait:
+  if (payload) return { lines: payload }
   const parsed = parsePipeline(input)
-  if ("error" in parsed) return { lines: [line(parsed.error, "error")] }
+  if ("error" in parsed) return { lines: parsed.operator ? baitForOperator(parsed.operator) : [line(parsed.error, "error")] } // bait:
 
   const [command, ...filters] = parsed.stages
   if (filters.length === 0) return dispatch(command, ctx)
 
   const unknown = filters.find((stage) => !isFilter(stage[0].toLowerCase()))
+  const pipedBait = unknown && baitForCommand(unknown[0], unknown.slice(1)) // bait: "... | sh" and friends
+  if (pipedBait) return { lines: pipedBait }
   if (unknown) {
     return { lines: [line(`${unknown[0]}: not available after a pipe (use grep, head, tail, sort, uniq or wc)`, "error")] }
   }

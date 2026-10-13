@@ -34,6 +34,8 @@ It is not a shell. Only the commands and flags above are accepted, and nothing p
 - Private addresses (IPv4 and IPv6) in `traceroute` output are replaced with `[private]`.
 - Only `application/json` POSTs from the site itself are accepted, so other websites cannot make their
   visitors' browsers run commands here.
+- Requests only an attacker would send (shell characters in arguments, unknown commands, private targets)
+  are refused with a "Nice try" message (search `bait:` in `netapi.mjs`).
 - Each run has a deadline and a 96 KB output cap.
 - 12 requests per minute per client, 120 per minute overall, 4 concurrent runs.
 

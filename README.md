@@ -43,6 +43,20 @@ The terminal section understands:
 - network tools: `ping`, `dig`, `nslookup`, `host`, `traceroute`, `whois`
 - pipes into `grep`, `head`, `tail`, `sort`, `uniq`, `wc`
 
+## Baits ("nice try")
+
+Attack-style input gets a playful answer instead of a plain error. Nothing is logged or sent anywhere.
+
+- terminal (`src/lib/baits.ts`): `sudo`/`su`, `rm` and other destructive commands, shells and interpreters,
+  scanners and `ssh`, shell operators (`;` `&&` `||` `$(` `` ` `` `>` `<`), XSS, SQL and template payloads,
+  `/etc/passwd` and other secret paths, private IP targets
+- API (`server/netapi.mjs`): shell characters in arguments, unknown commands, private targets
+- nginx (`server/nginx/portfolio.conf`): scanner paths such as `/wp-admin`, `/.env`, `/.git` and `*.php`
+  get `public/nice-try.html` with a 404 status
+- a note in the browser console (`src/main.tsx`)
+
+Search for `bait:` to find or remove each piece.
+
 ## Deployment
 
 On the server, as user `hilmy`:

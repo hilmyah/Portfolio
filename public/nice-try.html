@@ -1,0 +1,97 @@
+<!doctype html>
+<!-- bait: served by nginx (server/nginx/portfolio.conf) for paths scanners and curious visitors try,
+     such as /wp-admin, /.env, /.git/config and *.php. Static, no inline script, CSP-compatible. -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Nice try</title>
+    <link rel="icon" type="image/png" href="/icons/logo-temp.png" />
+    <script src="/theme-init.js"></script>
+    <script src="/nice-try.js" defer></script>
+    <style>
+      :root {
+        --bg: #f4f1ea;
+        --card: #161616;
+        --bar: #222;
+        --text: #e5e5e5;
+        --muted: #8a8a8a;
+        --accent: #f5c542;
+        --ok: #4ade80;
+        --err: #f87171;
+        --link: #93c5fd;
+      }
+      .dark { --bg: #232323; --card: #111; --bar: #1b1b1b; }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; }
+      body {
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+        padding: 24px 16px;
+        background: var(--bg);
+        font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      }
+      .window {
+        width: 100%;
+        max-width: 720px;
+        overflow: hidden;
+        border-radius: 12px;
+        background: var(--card);
+        color: var(--text);
+        box-shadow: 0 25px 50px -12px rgb(0 0 0 / 45%);
+      }
+      .bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        background: var(--bar);
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .dot { width: 11px; height: 11px; border-radius: 50%; }
+      .bar .title { margin-left: 8px; }
+      pre { margin: 0; padding: 18px 20px 22px; white-space: pre-wrap; word-break: break-word; font: inherit; }
+      .prompt { color: var(--ok); }
+      .muted { color: var(--muted); }
+      .err { color: var(--err); }
+      .accent { color: var(--accent); font-weight: 700; font-size: 1.35em; }
+      a { color: var(--link); text-underline-offset: 3px; }
+      a:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; border-radius: 2px; }
+      .cursor { display: inline-block; width: .6em; height: 1.1em; vertical-align: text-bottom; background: var(--text); animation: blink 1.1s steps(1) infinite; }
+      @keyframes blink { 50% { opacity: 0; } }
+      @media (prefers-reduced-motion: reduce) { .cursor { animation: none; } }
+    </style>
+  </head>
+  <body>
+    <main class="window" aria-labelledby="nice-try">
+      <div class="bar" aria-hidden="true">
+        <span class="dot" style="background:#ef4444"></span>
+        <span class="dot" style="background:#eab308"></span>
+        <span class="dot" style="background:#22c55e"></span>
+        <span class="title">visitor@hilmyah: ~</span>
+      </div>
+<pre><span class="prompt">visitor@hilmyah:~$</span> <span id="requested">GET /that-page</span>
+<span class="muted">HTTP/2 404 Not Found</span>
+
+<span class="prompt">visitor@hilmyah:~$</span> sudo ./exploit.sh
+[sudo] password for visitor: ********
+<span class="err">visitor is not in the sudoers file. This incident will be reported (to /dev/null).</span>
+
+<span class="accent" id="nice-try">Nice try.</span>
+
+There is no WordPress, no PHP, no .env and no admin panel here.
+This site is a handful of static files in a read-only folder.
+
+<span class="muted">If you like poking at things, the terminal on the homepage is the
+intended playground, and the source is public:</span>
+
+  <a href="/">cd ~</a>       <span class="muted"># back to the site</span>
+  <a href="https://github.com/hilmyah/Portfolio" rel="noopener noreferrer">git clone</a>  <span class="muted"># read the source</span>
+
+<span class="prompt">visitor@hilmyah:~$</span> <span class="cursor" aria-hidden="true"></span></pre>
+    </main>
+  </body>
+</html>

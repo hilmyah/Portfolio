@@ -2,7 +2,8 @@
 // Filters run in the browser on the lines a command produced. Nothing here executes anything.
 import type { TerminalLine } from "@/lib/terminal"
 
-export type Pipeline = { stages: string[][] } | { error: string }
+/** operator is set when the line used shell syntax this terminal does not have (; && || $( ` > <). */
+export type Pipeline = { stages: string[][] } | { error: string; operator?: string }
 
 /** Splits a command line into pipe stages of arguments, honouring single and double quotes. */
 export function parsePipeline(input: string): Pipeline {
@@ -34,12 +35,12 @@ export function parsePipeline(input: string): Pipeline {
     } else if (/\s/.test(ch)) {
       pushToken()
     } else if (ch === "|") {
-      if (input[i + 1] === "|") return { error: "'||' is not supported here. Only pipes (|) into grep, head, tail, sort, uniq and wc." }
+      if (input[i + 1] === "|") return { error: "'||' is not supported here. Only pipes (|) into grep, head, tail, sort, uniq and wc.", operator: "||" }
       pushToken()
       stages.push([])
     } else if (ch === ";" || ch === "&" || ch === ">" || ch === "<" || ch === "`" || (ch === "$" && input[i + 1] === "(")) {
       const shown = ch === "$" ? "$(" : ch === "&" && input[i + 1] === "&" ? "&&" : ch
-      return { error: `'${shown}' is not supported here. This is not a full shell: one command, optionally piped (|) into filters.` }
+      return { error: `'${shown}' is not supported here. This is not a full shell: one command, optionally piped (|) into filters.`, operator: shown }
     } else {
       current += ch
       hasToken = true

@@ -42,6 +42,10 @@ const MAX_CONCURRENT = 4
 const MAX_OUTPUT_BYTES = 96 * 1024
 const MAX_BODY_BYTES = 4096
 
+// bait: requests that only an attacker would send get a "nice try" in the error message.
+const NICE_TRY_LAN = "Nice try: the network behind this server is off limits."
+const SHELL_TRICK = /[;&|`$<>\\]|\.\.\//
+
 class UserError extends Error {
   constructor(message, status = 400) {
     super(message)
@@ -132,7 +136,7 @@ async function publicTarget(raw, wantFamily = 0) {
   if (Object.prototype.hasOwnProperty.call(TEST_HOSTS, host)) return { host, address: TEST_HOSTS[host], family: 4 }
   let usable
   if (isIP(host)) {
-    if (isBlockedAddress(host)) throw new UserError(`${host} is in a private or reserved address range`, 403)
+    if (isBlockedAddress(host)) throw new UserError(`${host} is in a private or reserved address range. ${NICE_TRY_LAN}`, 403)
     usable = [{ address: host, family: isIP(host) }]
   } else if (HOSTNAME_RE.test(host)) {
     // One message whether the name does not exist or only points at private addresses, so the
@@ -158,7 +162,7 @@ function dnsName(raw) {
 function publicIpLiteral(raw) {
   const ip = cleanHost(raw)
   if (!isIP(ip)) throw new UserError(`'${String(raw).slice(0, 80)}' is not an IP address`)
-  if (isBlockedAddress(ip)) throw new UserError(`${ip} is in a private or reserved address range`, 403)
+  if (isBlockedAddress(ip)) throw new UserError(`${ip} is in a private or reserved address range. ${NICE_TRY_LAN}`, 403)
   return ip
 }
 
@@ -474,9 +478,12 @@ async function handleRun(req, res) {
   const cmd = String(body?.cmd ?? "").toLowerCase()
   const args = body?.args
   const known = cmd === "whois" || Object.prototype.hasOwnProperty.call(builders, cmd)
-  if (!known) return sendJson(res, 404, { error: `${cmd.slice(0, 40) || "command"}: not available on this server` })
+  if (!known) return sendJson(res, 404, { error: `${cmd.slice(0, 40) || "command"}: not available on this server. Nice try.` })
   if (!Array.isArray(args) || args.length > 16 || args.some((a) => typeof a !== "string" || a.length > 255 || /[\0\r\n]/.test(a))) {
     return sendJson(res, 400, { error: "invalid arguments" })
+  }
+  if (args.some((a) => SHELL_TRICK.test(a))) {
+    return sendJson(res, 400, { error: "Nice try: there is no shell here. Arguments go straight to the tool, so ; | & $( ` > and ../ are just characters." })
   }
   if (!allow(clientOf(req))) return sendJson(res, 429, { error: "too many requests, try again in a minute" })
   if (running >= MAX_CONCURRENT) return sendJson(res, 503, { error: "server is busy, try again in a few seconds" })
@@ -544,7 +551,7 @@ const server = createServer((req, res) => {
       else res.end()
     })
   }
-  sendJson(res, 404, { error: "not found" })
+  sendJson(res, 404, { error: "not found. Nice try, though." })
 })
 
 server.requestTimeout = 60_000
