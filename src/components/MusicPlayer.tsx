@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { Repeat, Shuffle, SkipBack, SkipForward, Play, Pause, Volume2 } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { prefersReducedMotion } from "@/lib/theme"
 
 function ScrollingText({ text, containerClassName, textClassName }: { text: string; containerClassName?: string; textClassName?: string }) {
   const containerRef = React.useRef<HTMLDivElement | null>(null)
@@ -11,6 +12,8 @@ function ScrollingText({ text, containerClassName, textClassName }: { text: stri
   const measureRef = React.useRef<HTMLDivElement | null>(null)
   const [shouldMarquee, setShouldMarquee] = React.useState(false)
   const [durationMs, setDurationMs] = React.useState(18000)
+  // With "reduce motion" on, the marquee cannot move, so long text wraps instead of being cut off.
+  const [reduceMotion] = React.useState(prefersReducedMotion)
 
   React.useEffect(() => {
     const doMeasure = () => {
@@ -31,6 +34,10 @@ function ScrollingText({ text, containerClassName, textClassName }: { text: stri
     if (containerRef.current) ro.observe(containerRef.current)
     return () => { ro.disconnect(); cancelAnimationFrame(raf) }
   }, [text])
+
+  if (reduceMotion) {
+    return <div className={`min-w-0 break-words ${containerClassName || ""} ${textClassName || ""}`}>{text}</div>
+  }
 
   return (
     <div ref={containerRef} className={`relative overflow-hidden min-w-0 ${containerClassName || ""}`}>
@@ -234,12 +241,12 @@ function MusicPlayerInner({ minimal = false }: PlayerProps) {
                     <span className={`eq-bar delay-300 ${state.isPlaying ? 'animate-eq' : ''}`} />
                     <span className={`eq-bar delay-400 ${state.isPlaying ? 'animate-eq' : ''}`} />
                   </div>
-                  <div className="min-w-0">
-                    <ScrollingText
-                      text={currentSong.title}
-                      containerClassName="max-w-[260px] md:max-w-[420px]"
-                      textClassName="text-2xl md:text-3xl font-black"
-                    />
+                  <div className="@container min-w-0 flex-1">
+                    {/* Long titles wrap onto a second line instead of being cut off or scrolling, and the
+                        font shrinks with the space available (12% of this column, between 20 and 30 px). */}
+                    <p className="max-w-[420px] break-words text-balance text-[clamp(1.25rem,12cqi,1.875rem)] font-black leading-tight line-clamp-2" title={currentSong.title}>
+                      {currentSong.title}
+                    </p>
                     <ScrollingText
                       text={currentSong.artist}
                       containerClassName="max-w-[260px] md:max-w-[420px]"
