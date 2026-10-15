@@ -70,8 +70,8 @@ export const ABOUT = {
 export const SONGS: Song[] = [
   {
     id: 1,
-    title: "Theme",
-    artist: "Unknown Artist",
+    title: "Growtopia Theme",
+    artist: "Cory Mollenhour",
     src: "/audio/theme.mpeg",
     albumArt: "/img/album1.svg",
     lyric: "",
