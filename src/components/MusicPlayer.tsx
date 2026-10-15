@@ -6,60 +6,107 @@ import { Repeat, Shuffle, SkipBack, SkipForward, Play, Pause, Volume2 } from "lu
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { prefersReducedMotion } from "@/lib/theme"
 
+/** Fades an edge only while there is hidden text beyond it, so the first and last letters stay crisp. */
+function updateFades(box: HTMLElement) {
+  const max = box.scrollWidth - box.clientWidth
+  box.style.setProperty("--fade-l", box.scrollLeft > 1 ? "14px" : "0px")
+  box.style.setProperty("--fade-r", box.scrollLeft < max - 1 ? "18px" : "0px")
+}
+
+/**
+ * One line of text that never gets cut off: when it is wider than its box it drifts to the end,
+ * waits, drifts back, and so on (like the title on a music player). Visitors can also drag it with
+ * the mouse, swipe it on a touch screen or scroll it with a trackpad; it waits a moment after that.
+ * With the OS "reduce motion" setting on it stays still, but can still be dragged or swiped.
+ */
 function ScrollingText({ text, containerClassName, textClassName }: { text: string; containerClassName?: string; textClassName?: string }) {
-  const containerRef = React.useRef<HTMLDivElement | null>(null)
-  const contentRef = React.useRef<HTMLDivElement | null>(null)
-  const measureRef = React.useRef<HTMLDivElement | null>(null)
-  const [shouldMarquee, setShouldMarquee] = React.useState(false)
-  const [durationMs, setDurationMs] = React.useState(18000)
-  // With "reduce motion" on, the marquee cannot move, so long text wraps instead of being cut off.
+  const boxRef = React.useRef<HTMLDivElement | null>(null)
+  const pausedUntil = React.useRef(0)
+  const drag = React.useRef<{ x: number; left: number } | null>(null)
+  const [overflowing, setOverflowing] = React.useState(false)
   const [reduceMotion] = React.useState(prefersReducedMotion)
 
   React.useEffect(() => {
-    const doMeasure = () => {
-      const container = containerRef.current
-      const measureEl = measureRef.current
-      if (!container || !measureEl) return
-      const needs = measureEl.scrollWidth > container.clientWidth + 2
-      setShouldMarquee(needs)
-      if (needs) {
-        const overflow = measureEl.scrollWidth - container.clientWidth
-        const pxPerSec = 60
-        const ms = Math.min(28000, Math.max(12000, Math.round((overflow / pxPerSec) * 1000)))
-        setDurationMs(ms)
-      }
+    const box = boxRef.current
+    if (!box) return
+    const measure = () => {
+      setOverflowing(box.scrollWidth > box.clientWidth + 2)
+      updateFades(box)
     }
-    const raf = requestAnimationFrame(doMeasure)
-    const ro = new ResizeObserver(doMeasure)
-    if (containerRef.current) ro.observe(containerRef.current)
-    return () => { ro.disconnect(); cancelAnimationFrame(raf) }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(box)
+    return () => ro.disconnect()
   }, [text])
 
-  if (reduceMotion) {
-    return <div className={`min-w-0 break-words ${containerClassName || ""} ${textClassName || ""}`}>{text}</div>
+  React.useEffect(() => {
+    const box = boxRef.current
+    if (!box || !overflowing || reduceMotion) return
+    const SPEED = 28 // px per second
+    const REST = 1600 // ms to wait at each end
+    let frame = 0
+    let last = 0
+    let pos = box.scrollLeft
+    let dir = 1
+    let restUntil = performance.now() + REST
+    const step = (now: number) => {
+      frame = requestAnimationFrame(step)
+      const dt = last ? Math.min(0.05, (now - last) / 1000) : 0
+      last = now
+      // Hovering, dragging or a recent swipe/scroll: follow the visitor instead of moving.
+      if (drag.current || now < pausedUntil.current || box.matches(":hover")) {
+        pos = box.scrollLeft
+        return
+      }
+      if (now < restUntil) return
+      const max = box.scrollWidth - box.clientWidth
+      pos = Math.min(max, Math.max(0, pos + dir * SPEED * dt))
+      if (pos >= max || pos <= 0) {
+        dir = pos >= max ? -1 : 1
+        restUntil = now + REST
+      }
+      box.scrollLeft = pos
+    }
+    frame = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(frame)
+  }, [overflowing, reduceMotion, text])
+
+  const pause = () => {
+    pausedUntil.current = performance.now() + 2500
   }
 
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!overflowing || e.pointerType !== "mouse" || e.button !== 0) return
+    drag.current = { x: e.clientX, left: e.currentTarget.scrollLeft }
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (drag.current) e.currentTarget.scrollLeft = drag.current.left - (e.clientX - drag.current.x)
+  }
+  const endDrag = () => {
+    if (!drag.current) return
+    drag.current = null
+    pause()
+  }
+
+  // Faded edges hint that there is more text to either side (see updateFades).
+  const fade = "linear-gradient(to right, transparent, #000 var(--fade-l, 0px), #000 calc(100% - var(--fade-r, 18px)), transparent)"
+
   return (
-    <div ref={containerRef} className={`relative overflow-hidden min-w-0 ${containerClassName || ""}`}>
-      {/* hidden measuring element to decide overflow without affecting layout */}
-      <div ref={measureRef} className={`absolute left-0 top-0 invisible whitespace-nowrap pointer-events-none ${textClassName || ""}`}>{text}</div>
-      {shouldMarquee ? (
-        <div
-          ref={contentRef}
-          className={`flex w-max animate-marquee ${textClassName || ""}`}
-          style={{ animationDuration: `${durationMs}ms` }}
-          aria-label={text}
-        >
-          <span className="pr-10 whitespace-nowrap">{text}</span>
-          <span className="pr-10 whitespace-nowrap" aria-hidden>
-            {text}
-          </span>
-        </div>
-      ) : (
-        <div ref={contentRef} className={`truncate whitespace-nowrap ${textClassName || ""}`} aria-label={text}>
-          {text}
-        </div>
-      )}
+    <div
+      ref={boxRef}
+      className={`min-w-0 overflow-x-auto overflow-y-hidden whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${overflowing ? "cursor-grab select-none active:cursor-grabbing" : ""} ${containerClassName || ""} ${textClassName || ""}`}
+      style={overflowing ? { maskImage: fade, WebkitMaskImage: fade } : undefined}
+      title={overflowing ? text : undefined}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onScroll={(e) => updateFades(e.currentTarget)}
+      onTouchStart={pause}
+      onWheel={pause}
+    >
+      <span className="inline-block pr-1">{text}</span>
     </div>
   )
 }
@@ -241,12 +288,12 @@ function MusicPlayerInner({ minimal = false }: PlayerProps) {
                     <span className={`eq-bar delay-300 ${state.isPlaying ? 'animate-eq' : ''}`} />
                     <span className={`eq-bar delay-400 ${state.isPlaying ? 'animate-eq' : ''}`} />
                   </div>
-                  <div className="@container min-w-0 flex-1">
-                    {/* Long titles wrap onto a second line instead of being cut off or scrolling, and the
-                        font shrinks with the space available (12% of this column, between 20 and 30 px). */}
-                    <p className="max-w-[420px] break-words text-balance text-[clamp(1.25rem,12cqi,1.875rem)] font-black leading-tight line-clamp-2" title={currentSong.title}>
-                      {currentSong.title}
-                    </p>
+                  <div className="min-w-0 flex-1">
+                    <ScrollingText
+                      text={currentSong.title}
+                      containerClassName="max-w-[260px] md:max-w-[420px]"
+                      textClassName="text-2xl md:text-3xl font-black"
+                    />
                     <ScrollingText
                       text={currentSong.artist}
                       containerClassName="max-w-[260px] md:max-w-[420px]"
