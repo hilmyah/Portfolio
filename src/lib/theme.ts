@@ -55,7 +55,7 @@ function subscribe(listener: () => void) {
 }
 
 export function useTheme(): Theme {
-  return React.useSyncExternalStore(subscribe, getTheme, () => "light" as Theme)
+  return React.useSyncExternalStore(subscribe, getTheme)
 }
 
 export function prefersReducedMotion(): boolean {

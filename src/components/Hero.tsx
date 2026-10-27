@@ -1,6 +1,7 @@
 import * as React from "react"
 import { PROFILE } from "@/data"
 import { MusicPlayer } from "@/components/MusicPlayer"
+import { heroPhotoLoaded, releaseAfterHeroPhoto } from "@/lib/heroPhoto"
 import { prefersReducedMotion } from "@/lib/theme"
 import { usePauseOffscreen } from "@/lib/usePauseOffscreen"
 
@@ -173,8 +174,15 @@ export function Hero() {
   const columnRef = React.useRef<HTMLDivElement | null>(null)
   const cardRef = React.useRef<HTMLDivElement | null>(null)
   const sectionRef = React.useRef<HTMLElement | null>(null)
+  const photoRef = React.useRef<HTMLImageElement | null>(null)
   useTilt(columnRef, cardRef)
   usePauseOffscreen(sectionRef)
+
+  // Foto sudah selesai diunduh sebelum halaman tampil (koneksi cepat atau dari cache): ikut tergambar
+  // di frame pertama, jadi font dan ikon bisa langsung dilepas.
+  React.useEffect(() => {
+    if (photoRef.current?.complete) releaseAfterHeroPhoto()
+  }, [])
 
   React.useEffect(() => {
     const saved = loadLayout()
@@ -202,6 +210,7 @@ export function Hero() {
             aria-label="Portrait of Hilmy Adhyandra Hamzah"
           >
             <img
+              ref={photoRef}
               src={PROFILE.photo.src}
               width={PROFILE.photo.width}
               height={PROFILE.photo.height}
@@ -210,6 +219,8 @@ export function Hero() {
               loading="eager"
               fetchPriority="high"
               decoding="async"
+              onLoad={(e) => heroPhotoLoaded(e.currentTarget)}
+              onError={(e) => heroPhotoLoaded(e.currentTarget)}
             />
             <div className="absolute inset-0 bg-[url('/placeholder/paper-texture.svg')] opacity-20 mix-blend-overlay" />
             <div className="absolute left-2 top-2 rotate-6 bg-yellow-200 px-3 py-1 text-sm shadow border border-yellow-300 text-black">hello!</div>

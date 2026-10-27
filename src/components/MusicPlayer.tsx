@@ -92,8 +92,11 @@ function Player({ minimal = false }: PlayerProps) {
   // Urutan lagu yang sudah diputar, supaya "previous" juga bisa mundur di urutan acak.
   const history = React.useRef<number[]>([])
   // Salinan state terbaru untuk handler keyboard, supaya listener-nya cukup dipasang sekali.
+  // useLayoutEffect: diperbarui tepat setelah render, sebelum tombol berikutnya ditekan. Dengan
+  // useEffect (yang di Preact baru jalan setelah frame berikutnya), panah kanan yang ditekan dua
+  // kali dengan cepat hanya maju 5 detik.
   const latest = React.useRef(state)
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     latest.current = state
   })
 
@@ -228,7 +231,7 @@ function Player({ minimal = false }: PlayerProps) {
             max={Math.max(state.duration, 0.00001)}
             step={0.1}
             value={state.progress}
-            onChange={(e) => seek(Number(e.target.value))}
+            onChange={(e) => seek(Number(e.currentTarget.value))}
             aria-label="Seek"
             className="seek-fill"
             style={{ "--p": `${percent}%` } as React.CSSProperties}
@@ -283,7 +286,10 @@ function Player({ minimal = false }: PlayerProps) {
                   max={1}
                   step={0.01}
                   value={state.volume}
-                  onChange={(e) => setState((s) => ({ ...s, volume: Number(e.target.value) }))}
+                  onChange={(e) => {
+                    const volume = Number(e.currentTarget.value)
+                    setState((s) => ({ ...s, volume }))
+                  }}
                   aria-label="Volume"
                   className="h-2 w-full min-w-10 max-w-28 cursor-pointer rounded-full bg-muted"
                 />

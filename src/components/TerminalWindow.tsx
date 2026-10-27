@@ -294,14 +294,14 @@ export function TerminalWindow() {
                   </span>
                 </div>
               )}
-              <label className={cn("flex items-center gap-2", !ready && "hidden")}>
+              <label className={ready ? "flex items-center gap-2" : "hidden"}>
                 {busy ? <span aria-hidden className="terminal-cursor" /> : <Prompt path={getPromptPath()} />}
                 <span className="sr-only">Terminal command</span>
                 <input
                   ref={inputRef}
                   value={value}
                   onChange={(e) => {
-                    setValue(e.target.value)
+                    setValue(e.currentTarget.value)
                     setHistoryIndex(null)
                   }}
                   onKeyDown={onKeyDown}
@@ -311,7 +311,7 @@ export function TerminalWindow() {
                     busy ? "caret-transparent" : "caret-amber-300"
                   )}
                   placeholder={busy ? "" : "help"}
-                  spellCheck={false}
+                  spellcheck={false}
                   autoCapitalize="off"
                   autoComplete="off"
                   autoCorrect="off"

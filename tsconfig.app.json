@@ -13,7 +13,9 @@
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
+    /* JSX dan import "react" diarahkan ke Preact (preact/compat), sama seperti saat build */
     "jsx": "react-jsx",
+    "jsxImportSource": "preact",
 
     /* Linting */
     "strict": true,
@@ -25,12 +27,11 @@
 
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ]
+      "@/*": ["./src/*"],
+      "react": ["./node_modules/preact/compat/"],
+      "react-dom": ["./node_modules/preact/compat/"],
+      "react-dom/client": ["./node_modules/preact/compat/client"]
     }
-
-    
   },
   "include": ["src"]
 }

@@ -7,7 +7,7 @@ Live at <https://hilmyah.my.id>, self-hosted on a home server behind a Cloudflar
 
 ## Stack
 
-- React, TypeScript, Vite, Tailwind CSS
+- Preact (components are written against the React API and bundled through `preact/compat`), TypeScript, Vite, Tailwind CSS
 - Lucide icons; Inter, JetBrains Mono and Patrick Hand via Fontsource
 - `server/netapi.mjs`: optional Node backend that runs the terminal's network tools (see [server/README.md](server/README.md))
 

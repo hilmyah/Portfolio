@@ -1,7 +1,9 @@
 import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
 
-/** Menggabungkan class; kalau ada class Tailwind yang bentrok, yang terakhir menang. */
+/**
+ * Menggabungkan class, nilai false/undefined dilewati. Class yang bentrok tidak diselesaikan di sini,
+ * jadi jangan memberi dua class untuk properti yang sama (misalnya flex dan hidden sekaligus).
+ */
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return clsx(inputs)
 }

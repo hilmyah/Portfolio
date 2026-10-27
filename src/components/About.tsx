@@ -3,7 +3,12 @@ import type { CSSProperties } from "react"
 import { ABOUT, PROFILE, TOOLS } from "@/data"
 import { Reveal } from "@/components/Reveal"
 import { Tooltip } from "@/components/ui/tooltip"
+import { useHeroPhotoLoaded } from "@/lib/heroPhoto"
 import { usePauseOffscreen } from "@/lib/usePauseOffscreen"
+
+// GIF transparan 1x1. Dipakai sebagai src ikon selama foto profil belum selesai dimuat (lihat
+// src/lib/heroPhoto.ts): kotak ikon sudah tampil dengan ukuran aslinya, tapi belum ada request.
+const BLANK_IMAGE = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
 
 /** Posisi miring "tempelan" tiap ikon. Dihitung dari urutannya, jadi selalu sama di setiap kunjungan. */
 function toolStyle(i: number): CSSProperties {
@@ -18,6 +23,7 @@ function toolStyle(i: number): CSSProperties {
 export function About() {
   const sectionRef = React.useRef<HTMLElement | null>(null)
   usePauseOffscreen(sectionRef)
+  const loadIcons = useHeroPhotoLoaded()
 
   return (
     <section ref={sectionRef} id="about" className="relative scroll-mt-32 mx-auto max-w-6xl px-4 py-16">
@@ -48,7 +54,7 @@ export function About() {
                     <span aria-hidden className="tool-shadow tool-shadow-rest" />
                     <span aria-hidden className="tool-shadow tool-shadow-lift" />
                     <img
-                      src={tool.icon}
+                      src={loadIcons ? tool.icon : BLANK_IMAGE}
                       alt={`${tool.name} icon`}
                       className="block h-10 w-10 md:h-12 md:w-12 rounded-md border border-border bg-card p-2 shadow dark:border-neutral-300 dark:bg-neutral-100 hover:shadow-lg"
                     />
