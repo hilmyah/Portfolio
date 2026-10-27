@@ -1,14 +1,13 @@
-// Network commands for the terminal.
+// Perintah jaringan untuk terminal.
 //
-// When the site's backend is deployed (server/netapi.mjs behind /api/), ping, dig, whois, nslookup,
-// host and traceroute run on the server, with their usual flags, and the output is streamed here
-// line by line.
+// Kalau backend situs aktif (server/netapi.mjs di balik /api/), ping, dig, whois, nslookup, host dan
+// traceroute dijalankan di server dengan flag aslinya, dan output-nya dialirkan ke sini baris demi baris.
 //
-// Without a backend (static hosting, dev server without a proxy) three of them still work from the
-// visitor's browser, with fewer options:
-//   dig    -> DNS over HTTPS (dns.google, falling back to cloudflare-dns.com)
-//   whois  -> RDAP over HTTPS (rdap.org redirects to the authoritative registry)
-//   ping   -> timed HTTPS HEAD requests (browsers cannot send ICMP)
+// Tanpa backend (hosting statis, dev server tanpa proxy) tiga di antaranya tetap jalan dari browser
+// pengunjung dengan opsi yang lebih sedikit:
+//   dig    -> DNS over HTTPS (dns.google, cadangannya cloudflare-dns.com)
+//   whois  -> RDAP over HTTPS (rdap.org meneruskan ke registry yang berwenang)
+//   ping   -> HTTPS HEAD yang diukur waktunya (browser tidak bisa mengirim ICMP)
 import type { CommandContext, TerminalLine, TerminalResult, Tone } from "@/lib/terminal"
 
 export const REMOTE_COMMANDS = ["ping", "dig", "whois", "nslookup", "host", "traceroute"] as const
@@ -22,7 +21,7 @@ const HOSTNAME_RE = /^(?=.{1,253}$)([a-z0-9_]([a-z0-9_-]{0,61}[a-z0-9_])?\.)+[a-
 const IPV4_RE = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/
 const IPV6_RE = /^[0-9a-f:]+$/
 
-/** Accepts "example.com", "https://example.com/path" or "example.com." and returns the bare host. */
+/** Menerima "example.com", "https://example.com/path" atau "example.com." dan mengembalikan host-nya saja. */
 function cleanHost(raw: string): string {
   return raw
     .trim()
@@ -37,7 +36,7 @@ const isIp = (host: string) => IPV4_RE.test(host) || (host.includes(":") && IPV6
 const isAbort = (error: unknown) => error instanceof DOMException && error.name === "AbortError"
 const interrupted = (): TerminalResult => ({ lines: [line("^C", "muted")] })
 
-/** fetch() that gives up after timeoutMs and also stops when the terminal aborts the command. */
+/** fetch() yang menyerah setelah timeoutMs, dan ikut berhenti saat perintah dibatalkan (Ctrl+C). */
 async function timedFetch(url: string, init: RequestInit, signal: AbortSignal, timeoutMs: number): Promise<Response> {
   const controller = new AbortController()
   const onAbort = () => controller.abort()
@@ -74,17 +73,18 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
   })
 }
 
-// ---------------------------------------------------------------- server-side execution
+// ---------------------------------------------------------------- eksekusi di server
 
 type ServerOutcome =
   | { kind: "done"; result: TerminalResult }
   | { kind: "unavailable"; note?: string; reason?: string }
 
-// After a miss the backend is not asked again for a while, so static hosting does not pay a request per command.
+// Setelah backend tidak ditemukan, server tidak ditanya lagi selama semenit, supaya hosting statis
+// tidak membayar satu request gagal untuk setiap perintah.
 const BACKEND_RETRY_MS = 60_000
 let backendMissingSince = 0
 
-/** Comment lines of dig/whois output are dimmed, like a syntax-highlighting terminal would. */
+/** Baris komentar output dig/whois diredupkan, seperti terminal dengan syntax highlighting. */
 const outputLine = (text: string): TerminalLine => line(text, /^\s*(;|#|%|>>>)/.test(text) ? "muted" : undefined)
 
 async function runOnServer(cmd: RemoteCommand, args: string[], ctx: CommandContext): Promise<ServerOutcome> {
@@ -116,9 +116,9 @@ async function runOnServer(cmd: RemoteCommand, args: string[], ctx: CommandConte
       const data = (await response.json()) as { error?: string }
       if (data.error) reason = data.error
     } catch {
-      // keep the status text
+      // tetap pakai status HTTP sebagai alasan
     }
-    // 400, 403 and 422 are verdicts on the arguments and are final. The rest means "not right now".
+    // 400, 403 dan 422 adalah penilaian atas argumennya, jadi final. Selain itu artinya "sedang tidak bisa".
     if (response.status === 400 || response.status === 403 || response.status === 422) {
       return { kind: "done", result: { lines: [line(reason, "error")] } }
     }
@@ -130,7 +130,7 @@ async function runOnServer(cmd: RemoteCommand, args: string[], ctx: CommandConte
     return { kind: "unavailable" }
   }
 
-  // Server-sent events: "data: <json string>" chunks of output, then "event: done".
+  // Server-sent events: potongan output "data: <string json>", lalu "event: done".
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
   let events = ""
@@ -163,7 +163,7 @@ async function runOnServer(cmd: RemoteCommand, args: string[], ctx: CommandConte
       }
     }
   } catch {
-    // connection dropped; whatever arrived is already on screen
+    // koneksi putus; yang sudah sampai sudah tampil di layar
   } finally {
     ctx.signal.removeEventListener("abort", onAbort)
   }
@@ -171,7 +171,7 @@ async function runOnServer(cmd: RemoteCommand, args: string[], ctx: CommandConte
   return { kind: "done", result: ctx.signal.aborted ? interrupted() : { lines: [] } }
 }
 
-// ---------------------------------------------------------------- browser fallback: dig
+// ---------------------------------------------------------------- cadangan di browser: dig
 
 const RECORD_TYPES: Record<string, number> = {
   A: 1, NS: 2, CNAME: 5, SOA: 6, PTR: 12, MX: 15, TXT: 16, AAAA: 28, SRV: 33, CAA: 257,
@@ -260,7 +260,7 @@ async function digInBrowser(args: string[], ctx: CommandContext): Promise<Termin
   return { lines: [line(`dig: lookup failed (${lastError})`, "error")] }
 }
 
-// ---------------------------------------------------------------- browser fallback: whois
+// ---------------------------------------------------------------- cadangan di browser: whois
 
 type RdapEvent = { eventAction?: string; eventDate?: string }
 type RdapEntity = { roles?: string[]; handle?: string; vcardArray?: [string, unknown[][]]; entities?: RdapEntity[] }
@@ -355,7 +355,7 @@ async function whoisInBrowser(args: string[], ctx: CommandContext): Promise<Term
   const ip = isIp(target)
   if (!ip && !HOSTNAME_RE.test(target)) return { lines: [line(`whois: '${positional[0]}' is not a valid domain or IP address`, "error")] }
 
-  // A registry only knows the registered name, so "www.example.com" is retried as "example.com".
+  // Registry hanya mengenal nama yang terdaftar, jadi "www.example.com" dicoba ulang sebagai "example.com".
   const candidates = [target]
   if (!ip) {
     const labels = target.split(".")
@@ -378,7 +378,7 @@ async function whoisInBrowser(args: string[], ctx: CommandContext): Promise<Term
       try {
         source = new URL(response.url).hostname
       } catch {
-        // keep the default label
+        // tetap pakai label bawaan
       }
       return { lines: [...details, blank(), line(`source: ${source} (RDAP summary, fetched by your browser)`, "muted")] }
     } catch (error) {
@@ -399,7 +399,7 @@ async function whoisInBrowser(args: string[], ctx: CommandContext): Promise<Term
   }
 }
 
-// ---------------------------------------------------------------- browser fallback: ping
+// ---------------------------------------------------------------- cadangan di browser: ping
 
 const PING_TIMEOUT_MS = 5000
 const PING_INTERVAL_MS = 700
@@ -472,7 +472,7 @@ async function pingInBrowser(args: string[], ctx: CommandContext): Promise<Termi
   return { lines: summary() }
 }
 
-// ---------------------------------------------------------------- entry point
+// ---------------------------------------------------------------- titik masuk
 
 const BROWSER_FALLBACKS: Partial<Record<RemoteCommand, (args: string[], ctx: CommandContext) => Promise<TerminalResult>>> = {
   dig: digInBrowser,
@@ -480,7 +480,7 @@ const BROWSER_FALLBACKS: Partial<Record<RemoteCommand, (args: string[], ctx: Com
   ping: pingInBrowser,
 }
 
-/** Returns the terminal handler for one network command: server first, browser fallback second. */
+/** Handler terminal untuk satu perintah jaringan: coba server dulu, baru cadangan di browser. */
 export function networkCommand(cmd: RemoteCommand) {
   return async (args: string[], ctx: CommandContext): Promise<TerminalResult> => {
     const outcome = await runOnServer(cmd, args, ctx)

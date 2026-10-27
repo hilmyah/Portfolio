@@ -12,8 +12,8 @@ Environment=NETAPI_PORT=8787
 Restart=on-failure
 RestartSec=3
 
-# Files: /home is an empty tmpfs for this service except its own folder, mounted read-only,
-# so even a compromised process cannot read the rest of the home directory (SSH keys and so on).
+# File: /home menjadi tmpfs kosong untuk service ini, kecuali foldernya sendiri yang di-mount
+# read-only, jadi proses yang dibobol pun tidak bisa membaca isi home lain (SSH key dan sebagainya).
 ProtectHome=tmpfs
 BindReadOnlyPaths=/home/hilmy/projects/Portfolio/server
 ProtectSystem=strict
@@ -21,15 +21,15 @@ PrivateTmp=true
 PrivateDevices=true
 UMask=0077
 
-# Network: a kernel-level backstop for the address filter in netapi.mjs. No traffic to or from
-# private, CGNAT, link-local or multicast addresses. localhost stays allowed because nginx
-# connects over 127.0.0.1.
+# Jaringan: lapisan cadangan di level kernel untuk filter alamat di netapi.mjs. Tidak ada lalu
+# lintas ke atau dari alamat privat, CGNAT, link-local maupun multicast. localhost tetap boleh
+# karena nginx terhubung lewat 127.0.0.1.
 IPAddressAllow=localhost
 IPAddressDeny=10.0.0.0/8 100.64.0.0/10 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16 fc00::/7 link-local multicast
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
 
-# Privileges and kernel interfaces it never needs. ping works without capabilities through
-# unprivileged ICMP sockets (net.ipv4.ping_group_range).
+# Hak akses dan antarmuka kernel yang tidak pernah dibutuhkan. ping tetap jalan tanpa capability
+# lewat socket ICMP tanpa hak root (net.ipv4.ping_group_range).
 NoNewPrivileges=true
 CapabilityBoundingSet=
 RestrictSUIDSGID=true

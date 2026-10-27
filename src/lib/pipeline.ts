@@ -1,11 +1,11 @@
-// Shell-like parsing for the terminal: quoting, pipes, and the text filters that can follow a pipe.
-// Filters run in the browser on the lines a command produced. Nothing here executes anything.
+// Parsing ala shell untuk terminal: tanda kutip, pipe, dan filter teks yang boleh dipakai setelah
+// pipe. Filter berjalan di browser atas baris output sebuah perintah; tidak ada yang dieksekusi.
 import type { TerminalLine } from "@/lib/terminal"
 
-/** operator is set when the line used shell syntax this terminal does not have (; && || $( ` > <). */
+/** operator terisi kalau input memakai sintaks shell yang tidak ada di sini (; && || $( ` > <). */
 export type Pipeline = { stages: string[][] } | { error: string; operator?: string }
 
-/** Splits a command line into pipe stages of arguments, honouring single and double quotes. */
+/** Memecah satu baris perintah menjadi tahap-tahap pipe, masing-masing berisi argumen. */
 export function parsePipeline(input: string): Pipeline {
   const stages: string[][] = [[]]
   let current = ""
@@ -64,7 +64,7 @@ type FilterResult = { lines: TerminalLine[] } | { error: string }
 
 const plain = (text: string): TerminalLine => ({ text })
 
-/** Splits "-iv" style flag clusters; returns the flags and the remaining operands. */
+/** Memecah gabungan flag seperti "-iv"; mengembalikan flag, nilai flag, dan operand sisanya. */
 function splitFlags(args: string[], allowed: string, takesValue = ""): { flags: Set<string>; values: Map<string, string>; rest: string[] } | { error: string } {
   const flags = new Set<string>()
   const values = new Map<string, string>()
@@ -94,6 +94,7 @@ function splitFlags(args: string[], allowed: string, takesValue = ""): { flags: 
   return { flags, values, rest }
 }
 
+/** Jumlah baris untuk head/tail: -n 5, -n5 atau -5 (bawaan 10). */
 function lineCount(args: string[], name: string): { count: number } | { error: string } {
   let count = 10
   for (let i = 0; i < args.length; i++) {
@@ -116,8 +117,9 @@ export function applyFilter(name: string, args: string[], input: TerminalLine[])
       if ("error" in parsed) return { error: `grep: ${parsed.error}` }
       const { flags, rest } = parsed
       if (rest.length !== 1) return { error: "usage: grep [-i] [-v] [-c] [-n] [-F] <pattern>" }
-      let regex: RegExp
+      // Pola yang bukan regex valid dicari sebagai teks biasa.
       const escaped = rest[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      let regex: RegExp
       try {
         regex = new RegExp(flags.has("F") ? escaped : rest[0], flags.has("i") ? "i" : "")
       } catch {

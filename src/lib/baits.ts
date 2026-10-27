@@ -1,7 +1,7 @@
-// bait: playful "nice try" answers for the usual ways people poke at a website's terminal:
-// sudo, rm -rf, reverse shells, scanners, injection characters, XSS/SQL payloads, private IPs and
-// secret files. Nothing here detects, records or sends anything; it only changes what is printed.
-// To turn it off, delete this file and the lines marked "bait:" in terminal.ts.
+// bait: jawaban "nice try" untuk cara-cara umum orang mengutak-atik terminal sebuah website:
+// sudo, rm -rf, reverse shell, scanner, karakter injeksi, payload XSS/SQL, IP privat dan file
+// rahasia. Tidak ada yang dideteksi, dicatat atau dikirim ke mana pun; hanya teks output yang berubah.
+// Untuk mematikannya, hapus file ini dan baris bertanda "bait:" di terminal.ts.
 import { SOCIALS } from "@/data"
 import type { TerminalLine, Tone } from "@/lib/terminal"
 
@@ -9,7 +9,7 @@ const line = (text: string, tone?: Tone, href?: string): TerminalLine => ({ text
 
 let attempts = 0
 
-/** The first line of every bait. It gets a little more personal each time. */
+/** Baris pertama setiap bait; makin sering dicoba, makin personal. */
 function niceTry(): TerminalLine {
   attempts += 1
   if (attempts === 1) return line("Nice try.", "accent")
@@ -28,7 +28,7 @@ const OFFENSIVE = new Set([
   "john", "hashcat", "nc", "ncat", "netcat", "telnet", "ssh", "scp", "ftp",
 ])
 
-/** Commands that are not part of this terminal but are a classic first move. */
+/** Perintah yang tidak ada di terminal ini tapi biasanya dicoba pertama kali. */
 export function baitForCommand(name: string, args: string[]): TerminalLine[] | null {
   const cmd = name.toLowerCase()
   const shown = [name, ...args].join(" ")
@@ -68,13 +68,13 @@ const PAYLOADS: { pattern: RegExp; note: string }[] = [
   { pattern: /\$\{jndi:|\{\{\s*\d+\s*\*\s*\d+\s*\}\}|\$\{\s*\d+\s*\*\s*\d+\s*\}/i, note: "No Java, no template engine. Just text." },
 ]
 
-/** Whole-line payloads (XSS, SQL injection, template injection, fork bombs). */
+/** Payload satu baris penuh: XSS, SQL injection, template injection, fork bomb. */
 export function baitForPayload(input: string): TerminalLine[] | null {
   const hit = PAYLOADS.find(({ pattern }) => pattern.test(input))
   return hit ? [niceTry(), line(hit.note, "muted")] : null
 }
 
-/** Shell operators the pipeline parser does not support (; && || $( ` > <). */
+/** Operator shell yang tidak didukung parser (; && || $( ` > <). */
 export function baitForOperator(operator: string): TerminalLine[] {
   return [
     niceTry(),
@@ -85,7 +85,7 @@ export function baitForOperator(operator: string): TerminalLine[] {
 
 const SECRET_PATH = /^\/(etc\/(shadow|sudoers|ssh)|root|proc|sys|var\/log|boot)(\/|$)|(^|\/)(\.env(\..*)?|\.git|\.ssh|\.aws|\.bash_history|id_rsa|id_ed25519|wp-config\.php|config\.php|\.htpasswd)(\/|$)/i
 
-/** cat/cd/ls on files that every attacker checks first. Only called when the path does not exist. */
+/** cat/cd/ls ke file yang selalu dicari penyerang. Hanya dipanggil kalau path-nya memang tidak ada. */
 export function baitForPath(cmd: string, input: string, resolved: string): TerminalLine[] | null {
   if (resolved === "/etc/passwd") {
     return [
@@ -109,7 +109,7 @@ export function baitForPath(cmd: string, input: string, resolved: string): Termi
 
 const PRIVATE_V4 = /^(127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.)/
 
-/** Network commands aimed at the server's own network (SSRF-style). The server refuses them too. */
+/** Perintah jaringan yang diarahkan ke jaringan server sendiri (gaya SSRF). Server juga menolaknya. */
 export function baitForNetworkTarget(cmd: string, args: string[]): TerminalLine[] | null {
   const target = args.find((a) => {
     const host = a.replace(/^@/, "").replace(/^\[|\]$/g, "").toLowerCase()

@@ -1,275 +1,196 @@
 import * as React from "react"
+import { Pause, Play, Repeat, Shuffle, SkipBack, SkipForward, Volume2 } from "lucide-react"
 import { SONGS } from "@/data"
+import { ScrollingText } from "@/components/ScrollingText"
 import { Button } from "@/components/ui/button"
-import { Slider } from "@/components/ui/slider"
-import { Repeat, Shuffle, SkipBack, SkipForward, Play, Pause, Volume2 } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { prefersReducedMotion } from "@/lib/theme"
+import { Slider } from "@/components/ui/slider"
 
-/** Fades an edge only while there is hidden text beyond it, so the first and last letters stay crisp. */
-function updateFades(box: HTMLElement) {
-  const max = box.scrollWidth - box.clientWidth
-  box.style.setProperty("--fade-l", box.scrollLeft > 1 ? "14px" : "0px")
-  box.style.setProperty("--fade-r", box.scrollLeft < max - 1 ? "18px" : "0px")
-}
-
-/**
- * One line of text that never gets cut off: when it is wider than its box it drifts to the end,
- * waits, drifts back, and so on (like the title on a music player). Visitors can also drag it with
- * the mouse, swipe it on a touch screen or scroll it with a trackpad; it waits a moment after that.
- * With the OS "reduce motion" setting on it stays still, but can still be dragged or swiped.
- */
-function ScrollingText({ text, containerClassName, textClassName }: { text: string; containerClassName?: string; textClassName?: string }) {
-  const boxRef = React.useRef<HTMLDivElement | null>(null)
-  const pausedUntil = React.useRef(0)
-  const drag = React.useRef<{ x: number; left: number } | null>(null)
-  const [overflowing, setOverflowing] = React.useState(false)
-  const [reduceMotion] = React.useState(prefersReducedMotion)
-
-  React.useEffect(() => {
-    const box = boxRef.current
-    if (!box) return
-    const measure = () => {
-      setOverflowing(box.scrollWidth > box.clientWidth + 2)
-      updateFades(box)
-    }
-    measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(box)
-    return () => ro.disconnect()
-  }, [text])
-
-  React.useEffect(() => {
-    const box = boxRef.current
-    if (!box || !overflowing || reduceMotion) return
-    const SPEED = 28 // px per second
-    const REST = 1600 // ms to wait at each end
-    let frame = 0
-    let last = 0
-    let pos = box.scrollLeft
-    let dir = 1
-    let restUntil = performance.now() + REST
-    const step = (now: number) => {
-      frame = requestAnimationFrame(step)
-      const dt = last ? Math.min(0.05, (now - last) / 1000) : 0
-      last = now
-      // Hovering, dragging or a recent swipe/scroll: follow the visitor instead of moving.
-      if (drag.current || now < pausedUntil.current || box.matches(":hover")) {
-        pos = box.scrollLeft
-        return
-      }
-      if (now < restUntil) return
-      const max = box.scrollWidth - box.clientWidth
-      pos = Math.min(max, Math.max(0, pos + dir * SPEED * dt))
-      if (pos >= max || pos <= 0) {
-        dir = pos >= max ? -1 : 1
-        restUntil = now + REST
-      }
-      box.scrollLeft = pos
-    }
-    frame = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(frame)
-  }, [overflowing, reduceMotion, text])
-
-  const pause = () => {
-    pausedUntil.current = performance.now() + 2500
-  }
-
-  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!overflowing || e.pointerType !== "mouse" || e.button !== 0) return
-    drag.current = { x: e.clientX, left: e.currentTarget.scrollLeft }
-    e.currentTarget.setPointerCapture(e.pointerId)
-  }
-  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (drag.current) e.currentTarget.scrollLeft = drag.current.left - (e.clientX - drag.current.x)
-  }
-  const endDrag = () => {
-    if (!drag.current) return
-    drag.current = null
-    pause()
-  }
-
-  // Faded edges hint that there is more text to either side (see updateFades).
-  const fade = "linear-gradient(to right, transparent, #000 var(--fade-l, 0px), #000 calc(100% - var(--fade-r, 18px)), transparent)"
-
-  return (
-    <div
-      ref={boxRef}
-      className={`min-w-0 overflow-x-auto overflow-y-hidden whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${overflowing ? "cursor-grab select-none active:cursor-grabbing" : ""} ${containerClassName || ""} ${textClassName || ""}`}
-      style={overflowing ? { maskImage: fade, WebkitMaskImage: fade } : undefined}
-      title={overflowing ? text : undefined}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={endDrag}
-      onPointerCancel={endDrag}
-      onScroll={(e) => updateFades(e.currentTarget)}
-      onTouchStart={pause}
-      onWheel={pause}
-    >
-      <span className="inline-block pr-1">{text}</span>
-    </div>
-  )
-}
-
-type AudioState = {
-  currentIndex: number
-  isPlaying: boolean
-  progress: number // seconds
-  duration: number // seconds
-  volume: number // 0 - 1
+type PlayerState = {
+  index: number
+  playing: boolean
+  progress: number // detik
+  duration: number // detik
+  volume: number // 0 sampai 1
   shuffle: boolean
   repeat: boolean
 }
 
 type PlayerProps = { minimal?: boolean }
 
-/** With a single song, shuffle has nothing to mix: the button stays off and explains why instead. */
+// Dengan satu lagu, shuffle tidak punya apa-apa untuk diacak: tombolnya tetap off dan menjelaskan alasannya.
 const SINGLE_TRACK = SONGS.length < 2
 const SHUFFLE_HINT = "There's only 1 song, so shuffle isn't needed."
 
-export function MusicPlayer(props: PlayerProps) {
-  if (SONGS.length === 0) return null
-  return <MusicPlayerInner {...props} />
+function formatTime(sec: number) {
+  if (!isFinite(sec)) return "0:00"
+  const m = Math.floor(sec / 60)
+  const s = Math.floor(sec % 60)
+  return `${m}:${s.toString().padStart(2, "0")}`
 }
 
-function MusicPlayerInner({ minimal = false }: PlayerProps) {
-  const [state, setState] = React.useState<AudioState>({
-    currentIndex: 0,
-    isPlaying: false,
+/** Lagu berikutnya. Shuffle tidak pernah memilih lagu yang sedang diputar (kalau ada pilihan lain). */
+function nextIndex(s: PlayerState) {
+  if (!s.shuffle || SONGS.length < 2) return (s.index + 1) % SONGS.length
+  const others = SONGS.map((_, i) => i).filter((i) => i !== s.index)
+  return others[Math.floor(Math.random() * others.length)]
+}
+
+const toggleClass = (active: boolean) =>
+  "relative " +
+  (active
+    ? "bg-accent text-foreground after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-current"
+    : "text-muted-foreground")
+
+/** Petunjuk shuffle: muncul saat hover (mouse) atau sebentar setelah diklik/diketuk (layar sentuh tidak punya hover). */
+function ShuffleHint() {
+  const [show, setShow] = React.useState(false)
+  const timer = React.useRef<number | undefined>(undefined)
+  const id = React.useId()
+  React.useEffect(() => () => window.clearTimeout(timer.current), [])
+
+  const flash = () => {
+    setShow(true)
+    window.clearTimeout(timer.current)
+    timer.current = window.setTimeout(() => setShow(false), 2500)
+  }
+
+  return (
+    <span className="group relative inline-flex">
+      <Button variant="ghost" size="icon" className={toggleClass(false) + " cursor-help"} onClick={flash} aria-disabled="true" aria-label="Shuffle" aria-describedby={id}>
+        <Shuffle className="h-5 w-5" />
+      </Button>
+      <span
+        id={id}
+        role="tooltip"
+        data-show={show}
+        className="pointer-events-none absolute bottom-full left-0 z-20 mb-2 w-max max-w-[13rem] translate-y-1 rounded-md border border-border bg-popover px-2.5 py-1.5 text-xs leading-snug text-popover-foreground opacity-0 shadow-md transition duration-150 group-hover:translate-y-0 group-hover:opacity-100 group-has-[:focus-visible]:translate-y-0 group-has-[:focus-visible]:opacity-100 data-[show=true]:translate-y-0 data-[show=true]:opacity-100"
+      >
+        {SHUFFLE_HINT}
+        <span aria-hidden className="absolute left-3.5 top-full -mt-1 h-2 w-2 rotate-45 border-b border-r border-border bg-popover" />
+      </span>
+    </span>
+  )
+}
+
+export function MusicPlayer(props: PlayerProps) {
+  if (SONGS.length === 0) return null
+  return <Player {...props} />
+}
+
+function Player({ minimal = false }: PlayerProps) {
+  const [state, setState] = React.useState<PlayerState>({
+    index: 0,
+    playing: false,
     progress: 0,
     duration: 0,
     volume: 0.8,
     shuffle: false,
     repeat: false,
   })
-
   const audioRef = React.useRef<HTMLAudioElement | null>(null)
-  // Shuffle hint: shown on hover (mouse) or for a moment after a tap/click (touch screens have no hover).
-  const [shuffleHint, setShuffleHint] = React.useState(false)
-  const hintTimer = React.useRef<number | undefined>(undefined)
-  const hintId = React.useId()
-  React.useEffect(() => () => window.clearTimeout(hintTimer.current), [])
-  const flashShuffleHint = () => {
-    setShuffleHint(true)
-    window.clearTimeout(hintTimer.current)
-    hintTimer.current = window.setTimeout(() => setShuffleHint(false), 2500)
-  }
-  // Tracks played before the current one, so "previous" walks back through a shuffled order too.
-  const historyRef = React.useRef<number[]>([])
+  // Urutan lagu yang sudah diputar, supaya "previous" juga bisa mundur di urutan acak.
+  const history = React.useRef<number[]>([])
+  // Salinan state terbaru untuk handler keyboard, supaya listener-nya cukup dipasang sekali.
+  const latest = React.useRef(state)
+  React.useEffect(() => {
+    latest.current = state
+  })
 
-  const currentSong = SONGS[state.currentIndex]
+  const song = SONGS[state.index]
 
   React.useEffect(() => {
-    if (!audioRef.current) return
-    audioRef.current.volume = state.volume
+    if (audioRef.current) audioRef.current.volume = state.volume
   }, [state.volume])
 
   React.useEffect(() => {
-    if (!audioRef.current) return
-    if (state.isPlaying) audioRef.current.play().catch(() => {})
-    else audioRef.current.pause()
-  }, [state.isPlaying, state.currentIndex])
+    const audio = audioRef.current
+    if (!audio) return
+    if (state.playing) audio.play().catch(() => {})
+    else audio.pause()
+  }, [state.playing, state.index])
 
-  const onTimeUpdate = () => {
-    const a = audioRef.current
-    if (!a) return
-    setState((s) => ({ ...s, progress: a.currentTime, duration: a.duration || 0 }))
-  }
+  const togglePlay = () => setState((s) => ({ ...s, playing: !s.playing }))
 
-  const seek = (time: number) => {
-    const a = audioRef.current
-    if (!a) return
-    a.currentTime = time
+  const seek = React.useCallback((time: number) => {
+    const audio = audioRef.current
+    if (!audio) return
+    audio.currentTime = time
     setState((s) => ({ ...s, progress: time }))
-  }
+  }, [])
 
-  const format = (sec: number) => {
-    if (!isFinite(sec)) return "0:00"
-    const m = Math.floor(sec / 60)
-    const s = Math.floor(sec % 60)
-    return `${m}:${s.toString().padStart(2, "0")}`
-  }
-
-  /** Shuffle never picks the song that is already playing (when there is another one to pick). */
-  const pickNext = (s: AudioState) => {
-    if (!s.shuffle || SONGS.length < 2) return (s.currentIndex + 1) % SONGS.length
-    const others = SONGS.map((_, i) => i).filter((i) => i !== s.currentIndex)
-    return others[Math.floor(Math.random() * others.length)]
-  }
-
-  const restartCurrent = () => {
-    const a = audioRef.current
-    if (a) a.currentTime = 0
+  const restart = () => {
+    if (audioRef.current) audioRef.current.currentTime = 0
     setState((s) => ({ ...s, progress: 0 }))
   }
 
-  const goTo = (index: number, keepPlaying?: boolean) => {
-    if (index === state.currentIndex) return
-    historyRef.current = [...historyRef.current.slice(-49), state.currentIndex]
-    setState((s) => ({ ...s, currentIndex: index, progress: 0, isPlaying: keepPlaying ?? s.isPlaying }))
+  const goTo = (index: number, playing?: boolean) => {
+    if (index === state.index) return
+    history.current = [...history.current.slice(-49), state.index]
+    setState((s) => ({ ...s, index, progress: 0, playing: playing ?? s.playing }))
   }
 
   const next = () => {
-    const index = pickNext(state)
-    if (index === state.currentIndex) restartCurrent()
+    const index = nextIndex(state)
+    if (index === state.index) restart()
     else goTo(index)
   }
 
   const prev = () => {
-    // Like most players: past the first few seconds, "previous" restarts the current song.
-    if (state.progress > 3) return restartCurrent()
-    const previous = historyRef.current.pop()
-    const index = previous ?? (state.currentIndex - 1 + SONGS.length) % SONGS.length
-    if (index === state.currentIndex) return restartCurrent()
-    setState((s) => ({ ...s, currentIndex: index, progress: 0 }))
+    // Seperti player pada umumnya: lewat dari 3 detik, "previous" mengulang lagu yang sedang diputar.
+    if (state.progress > 3) return restart()
+    const index = history.current.pop() ?? (state.index - 1 + SONGS.length) % SONGS.length
+    if (index === state.index) return restart()
+    setState((s) => ({ ...s, index, progress: 0 }))
   }
 
-  // With repeat on, the <audio loop> attribute replays the song and "ended" never fires.
-  // With repeat off and nothing else to play (one song), it plays once and stops at the start.
+  // Repeat on: atribut loop di <audio> mengulang lagu dan "ended" tidak pernah terjadi.
+  // Repeat off tanpa lagu lain (satu lagu): diputar sekali, lalu berhenti dan kembali ke awal.
   const onEnded = () => {
-    const index = pickNext(state)
-    if (index === state.currentIndex) {
-      restartCurrent()
-      setState((s) => ({ ...s, isPlaying: false }))
+    const index = nextIndex(state)
+    if (index === state.index) {
+      restart()
+      setState((s) => ({ ...s, playing: false }))
     } else {
       goTo(index, true)
     }
   }
 
-  const toggleClass = (active: boolean) =>
-    "relative " + (active ? "bg-accent text-foreground after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-current" : "text-muted-foreground")
-
+  // Spasi: play/pause. Panah kiri/kanan: mundur/maju 5 detik. Diabaikan saat mengetik atau di tombol.
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
       if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(target.tagName))) return
+      const { progress, duration } = latest.current
       if (e.code === "Space") {
         e.preventDefault()
-        setState((s) => ({ ...s, isPlaying: !s.isPlaying }))
+        setState((s) => ({ ...s, playing: !s.playing }))
       } else if (e.code === "ArrowRight") {
-        seek(Math.min(state.progress + 5, state.duration))
+        seek(Math.min(progress + 5, duration))
       } else if (e.code === "ArrowLeft") {
-        seek(Math.max(state.progress - 5, 0))
+        seek(Math.max(progress - 5, 0))
       }
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [state.progress, state.duration])
+  }, [seek])
+
+  const percent = state.duration > 0 ? Math.min(100, (state.progress / state.duration) * 100) : 0
 
   return (
     <Card className="overflow-hidden card-shadow">
       <CardHeader className="flex flex-col gap-4">
         <div className="grid gap-6 md:grid-cols-[220px_1fr]">
           <div className="space-y-4">
-            {/* polish: vinyl. A record slides out from behind the cover and spins while a song plays. */}
+            {/* Piringan hitam (.vinyl) keluar dari balik sampul dan berputar saat lagu diputar. */}
             <div className="relative">
-            <span aria-hidden className="vinyl" data-playing={state.isPlaying} />
-            <div className={`relative z-10 aspect-square overflow-hidden rounded-md border border-border bg-muted ${state.isPlaying ? 'animate-wobble-soft shadow-lg' : ''}`}>
-              <img src={currentSong.albumArt} alt="current album art" className="h-full w-full object-cover" />
-              <span aria-hidden className="pointer-events-none absolute -left-1 -top-1 h-4 w-10 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat" />
-              <span aria-hidden className="pointer-events-none absolute -right-1 -top-1 h-4 w-10 rotate-6 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat" />
-              <span aria-hidden className="absolute right-3 top-3 h-16 w-0.5 bg-black/50 origin-top rotate-12 rounded-full" />
-            </div>
+              <span aria-hidden className="vinyl" data-playing={state.playing} />
+              <div className={`relative z-10 aspect-square overflow-hidden rounded-md border border-border bg-muted ${state.playing ? "animate-wobble-soft shadow-lg" : ""}`}>
+                <img src={song.albumArt} alt="current album art" className="h-full w-full object-cover" />
+                <span aria-hidden className="pointer-events-none absolute -left-1 -top-1 h-4 w-10 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat" />
+                <span aria-hidden className="pointer-events-none absolute -right-1 -top-1 h-4 w-10 rotate-6 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat" />
+                <span aria-hidden className="absolute right-3 top-3 h-16 w-0.5 bg-black/50 origin-top rotate-12 rounded-full" />
+              </div>
             </div>
           </div>
           <div className="min-w-0 self-center">
@@ -277,28 +198,20 @@ function MusicPlayerInner({ minimal = false }: PlayerProps) {
               <>
                 <div className="relative inline-block -rotate-1 rounded-md border border-border bg-accent/40 px-3 py-2 shadow">
                   <p className="font-handwriting text-lg md:text-2xl italic leading-snug" aria-live="polite">
-                    {currentSong.lyric?.trim() ? `“${currentSong.lyric}”` : 'Speak your mind, and let the music play.'}
+                    {song.lyric?.trim() ? `“${song.lyric}”` : "Speak your mind, and let the music play."}
                   </p>
                 </div>
                 <div className="mt-3 flex items-end gap-3">
                   <div className="hidden md:flex items-end gap-1" aria-hidden>
-                    <span className={`eq-bar ${state.isPlaying ? 'animate-eq' : ''}`} />
-                    <span className={`eq-bar delay-100 ${state.isPlaying ? 'animate-eq' : ''}`} />
-                    <span className={`eq-bar delay-200 ${state.isPlaying ? 'animate-eq' : ''}`} />
-                    <span className={`eq-bar delay-300 ${state.isPlaying ? 'animate-eq' : ''}`} />
-                    <span className={`eq-bar delay-400 ${state.isPlaying ? 'animate-eq' : ''}`} />
+                    {[0, 100, 200, 300, 400].map((delay) => (
+                      <span key={delay} className="eq-bar">
+                        <span className={state.playing ? "animate-eq" : undefined} style={{ animationDelay: `${delay}ms` }} />
+                      </span>
+                    ))}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <ScrollingText
-                      text={currentSong.title}
-                      containerClassName="max-w-[260px] md:max-w-[420px]"
-                      textClassName="text-2xl md:text-3xl font-black"
-                    />
-                    <ScrollingText
-                      text={currentSong.artist}
-                      containerClassName="max-w-[260px] md:max-w-[420px]"
-                      textClassName="text-base md:text-lg text-muted-foreground"
-                    />
+                    <ScrollingText text={song.title} className="max-w-[260px] md:max-w-[420px] text-2xl md:text-3xl font-black" />
+                    <ScrollingText text={song.artist} className="max-w-[260px] md:max-w-[420px] text-base md:text-lg text-muted-foreground" />
                   </div>
                 </div>
               </>
@@ -308,52 +221,55 @@ function MusicPlayerInner({ minimal = false }: PlayerProps) {
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-center gap-2">
-          {!minimal && <span className="w-10 text-xs tabular-nums">{format(state.progress)}</span>}
-          {/* The played part of the bar shows the album-cover gradient (.seek-fill in index.css). */}
+          {!minimal && <span className="w-10 text-xs tabular-nums">{formatTime(state.progress)}</span>}
+          {/* Bagian yang sudah diputar memakai gradasi sampul album (.seek-fill di index.css). */}
           <Slider
             min={0}
             max={Math.max(state.duration, 0.00001)}
             step={0.1}
             value={state.progress}
-            onChange={(e) => seek(Number((e.target as HTMLInputElement).value))}
+            onChange={(e) => seek(Number(e.target.value))}
             aria-label="Seek"
             className="seek-fill"
-            style={{ "--p": `${state.duration > 0 ? Math.min(100, (state.progress / state.duration) * 100) : 0}%` } as React.CSSProperties}
+            style={{ "--p": `${percent}%` } as React.CSSProperties}
           />
-          {!minimal && <span className="w-10 text-xs tabular-nums text-right">{format(state.duration)}</span>}
+          {!minimal && <span className="w-10 text-xs tabular-nums text-right">{formatTime(state.duration)}</span>}
         </div>
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1 sm:gap-2">
             {SINGLE_TRACK ? (
-              <span className="group relative inline-flex">
-                <Button variant="ghost" size="icon" className={toggleClass(false) + " cursor-help"} onClick={flashShuffleHint} aria-disabled="true" aria-label="Shuffle" aria-describedby={hintId}>
-                  <Shuffle className="h-5 w-5" />
-                </Button>
-                <span
-                  id={hintId}
-                  role="tooltip"
-                  data-show={shuffleHint}
-                  className="pointer-events-none absolute bottom-full left-0 z-20 mb-2 w-max max-w-[13rem] translate-y-1 rounded-md border border-border bg-popover px-2.5 py-1.5 text-xs leading-snug text-popover-foreground opacity-0 shadow-md transition duration-150 group-hover:translate-y-0 group-hover:opacity-100 group-has-[:focus-visible]:translate-y-0 group-has-[:focus-visible]:opacity-100 data-[show=true]:translate-y-0 data-[show=true]:opacity-100"
-                >
-                  {SHUFFLE_HINT}
-                  <span aria-hidden className="absolute left-3.5 top-full -mt-1 h-2 w-2 rotate-45 border-b border-r border-border bg-popover" />
-                </span>
-              </span>
+              <ShuffleHint />
             ) : (
-              <Button variant="ghost" size="icon" className={toggleClass(state.shuffle)} onClick={() => setState((s) => ({ ...s, shuffle: !s.shuffle }))} aria-pressed={state.shuffle} aria-label="Shuffle" title={state.shuffle ? "Shuffle: on" : "Shuffle: off"}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={toggleClass(state.shuffle)}
+                onClick={() => setState((s) => ({ ...s, shuffle: !s.shuffle }))}
+                aria-pressed={state.shuffle}
+                aria-label="Shuffle"
+                title={state.shuffle ? "Shuffle: on" : "Shuffle: off"}
+              >
                 <Shuffle className="h-5 w-5" />
               </Button>
             )}
             <Button variant="ghost" size="icon" onClick={prev} aria-label="Previous">
               <SkipBack className="h-5 w-5" />
             </Button>
-            <Button variant="secondary" size="icon" onClick={() => setState((s) => ({ ...s, isPlaying: !s.isPlaying }))} aria-label={state.isPlaying ? "Pause" : "Play"}>
-              {state.isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+            <Button variant="secondary" size="icon" onClick={togglePlay} aria-label={state.playing ? "Pause" : "Play"}>
+              {state.playing ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
             </Button>
             <Button variant="ghost" size="icon" onClick={next} aria-label="Next">
               <SkipForward className="h-5 w-5" />
             </Button>
-            <Button variant="ghost" size="icon" className={toggleClass(state.repeat)} onClick={() => setState((s) => ({ ...s, repeat: !s.repeat }))} aria-pressed={state.repeat} aria-label="Repeat" title={state.repeat ? "Repeat this song: on" : "Repeat this song: off"}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={toggleClass(state.repeat)}
+              onClick={() => setState((s) => ({ ...s, repeat: !s.repeat }))}
+              aria-pressed={state.repeat}
+              aria-label="Repeat"
+              title={state.repeat ? "Repeat this song: on" : "Repeat this song: off"}
+            >
               <Repeat className="h-5 w-5" />
             </Button>
           </div>
@@ -377,8 +293,11 @@ function MusicPlayerInner({ minimal = false }: PlayerProps) {
         </div>
         <audio
           ref={audioRef}
-          src={currentSong.src}
-          onTimeUpdate={onTimeUpdate}
+          src={song.src}
+          onTimeUpdate={(e) => {
+            const audio = e.currentTarget
+            setState((s) => ({ ...s, progress: audio.currentTime, duration: audio.duration || 0 }))
+          }}
           onEnded={onEnded}
           loop={state.repeat}
           preload="none"

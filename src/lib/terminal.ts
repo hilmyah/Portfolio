@@ -1,21 +1,15 @@
-import {
-  ABOUT,
-  PROFILE,
-  PROJECTS,
-  PROJECT_TAGS,
-  SITE_DOMAIN,
-  SOCIALS,
-  TERMINAL_COMMANDS,
-  TOOLS,
-} from "@/data"
+// Mesin terminal: daftar perintah, pipe ke filter, dan tab completion. Tampilan ada di
+// components/TerminalWindow.tsx; file ini tidak menyentuh DOM kecuali window.open dan matchMedia.
+import { ABOUT, PROFILE, PROJECTS, PROJECT_TAGS, SITE_DOMAIN, SOCIALS, TERMINAL_COMMANDS, TOOLS } from "@/data"
 import type { CommandGroup, Project } from "@/data"
 import { REMOTE_COMMANDS, networkCommand } from "@/lib/netCommands"
 import { applyFilter, isFilter, parsePipeline } from "@/lib/pipeline"
-// bait: "nice try" answers for attack-style input (see src/lib/baits.ts)
+// bait: jawaban "nice try" untuk input bergaya serangan (lihat src/lib/baits.ts)
 import { baitForCommand, baitForNetworkTarget, baitForOperator, baitForPath, baitForPayload } from "@/lib/baits"
 import { getTheme, setTheme } from "@/lib/theme"
-import { HOME, completePath, displayPath, listDir, lookupPath, projectSlug, resolvePath } from "@/lib/vfs"
 import type { Theme } from "@/lib/theme"
+import { HOME, completePath, displayPath, listDir, lookupPath, projectSlug, resolvePath } from "@/lib/vfs"
+import type { VfsNode } from "@/lib/vfs"
 
 export type Tone = "default" | "muted" | "accent" | "success" | "error"
 
@@ -30,6 +24,14 @@ export type TerminalResult = {
   clear?: boolean
 }
 
+/** Diberikan ke setiap perintah. Perintah yang lama berjalan mencetak progres dan berhenti saat signal di-abort. */
+export type CommandContext = {
+  print: (lines: TerminalLine[]) => void
+  signal: AbortSignal
+}
+
+type Handler = (args: string[], ctx: CommandContext) => TerminalResult | Promise<TerminalResult>
+
 export const PROMPT_USER = "visitor"
 export const PROMPT_HOST = "hilmyah"
 
@@ -40,13 +42,13 @@ export const WELCOME_LINES: TerminalLine[] = [
 
 const line = (text: string, tone?: Tone, href?: string): TerminalLine => ({ text, tone, href })
 const blank = (): TerminalLine => ({ text: "" })
+const pad = (value: string, width: number) => (value.length >= width ? value : value + " ".repeat(width - value.length))
 
-export { projectSlug }
-
-// Current directory of the virtual filesystem; one terminal per page, so module state is enough.
+// Direktori aktif. Hanya ada satu terminal per halaman, jadi cukup disimpan di level modul.
 let cwd = HOME
-export const getCwd = () => cwd
 export const getPromptPath = () => displayPath(cwd)
+
+const isRemote = (name: string) => (REMOTE_COMMANDS as readonly string[]).includes(name)
 
 function findProject(query: string): Project | undefined {
   const q = query.toLowerCase().trim()
@@ -59,26 +61,29 @@ function findProject(query: string): Project | undefined {
   )
 }
 
-function pad(value: string, width: number): string {
-  return value.length >= width ? value : value + " ".repeat(width - value.length)
+const SOCIAL_LINKS: [label: string, url: string | undefined][] = [
+  ["github", SOCIALS.github],
+  ["linkedin", SOCIALS.linkedin],
+  ["instagram", SOCIALS.instagram],
+  ["facebook", SOCIALS.facebook],
+]
+
+/** Pesan usage dan "not found" yang sama untuk project dan open. */
+function projectArgument(command: string, query: string): { project: Project } | { lines: TerminalLine[] } {
+  if (!query) {
+    return {
+      lines: [
+        line(`usage: ${command} <id|name>`, "error"),
+        line(`Try: ${command} ${PROJECTS[0] ? projectSlug(PROJECTS[0]) : "<name>"}`, "muted"),
+      ],
+    }
+  }
+  const project = findProject(query)
+  if (!project) return { lines: [line(`${command}: '${query}' not found`, "error"), line("Run 'projects' to see the list.", "muted")] }
+  return { project }
 }
 
-function socialLines(): TerminalLine[] {
-  const out: TerminalLine[] = []
-  if (SOCIALS.github) out.push(line(`${pad("github", 10)} ${SOCIALS.github}`, "default", SOCIALS.github))
-  if (SOCIALS.linkedin) out.push(line(`${pad("linkedin", 10)} ${SOCIALS.linkedin}`, "default", SOCIALS.linkedin))
-  if (SOCIALS.instagram) out.push(line(`${pad("instagram", 10)} ${SOCIALS.instagram}`, "default", SOCIALS.instagram))
-  if (SOCIALS.facebook) out.push(line(`${pad("facebook", 10)} ${SOCIALS.facebook}`, "default", SOCIALS.facebook))
-  return out
-}
-
-/** Passed to every command. Long-running commands print progress and stop when the signal aborts. */
-export type CommandContext = {
-  print: (lines: TerminalLine[]) => void
-  signal: AbortSignal
-}
-
-type Handler = (args: string[], ctx: CommandContext) => TerminalResult | Promise<TerminalResult>
+const HELP_GROUPS: CommandGroup[] = ["portfolio", "files", "network", "shell"]
 
 const handlers: Record<string, Handler> = {
   help: (args) => {
@@ -96,22 +101,15 @@ const handlers: Record<string, Handler> = {
       }
       return { lines: out }
     }
-    const groups: [CommandGroup, string][] = [
-      ["portfolio", "portfolio"],
-      ["files", "files"],
-      ["network", "network"],
-      ["shell", "shell"],
-    ]
+    // Di layar sempit nama grup diberi baris sendiri supaya daftar perintahnya tidak terpotong di tengah.
+    const narrow = window.matchMedia("(max-width: 640px)").matches
     return {
       lines: [
         line("Commands (help <command> shows usage and examples):", "accent"),
         blank(),
-        // Narrow screens get the group name on its own line so the command lists do not wrap mid-row.
-        ...groups.flatMap(([group, label]) => {
+        ...HELP_GROUPS.flatMap((group) => {
           const names = TERMINAL_COMMANDS.filter((c) => c.group === group).map((c) => c.command).join("  ")
-          return window.matchMedia("(max-width: 640px)").matches
-            ? [line(label, "muted"), line(`  ${names}`)]
-            : [line(`  ${pad(label, 11)}${names}`)]
+          return narrow ? [line(group, "muted"), line(`  ${names}`)] : [line(`  ${pad(group, 11)}${names}`)]
         }),
         blank(),
         line("Pipes: <command> | grep, head, tail, sort, uniq, wc", "muted"),
@@ -135,12 +133,7 @@ const handlers: Record<string, Handler> = {
     const tag = args[0]?.toLowerCase()
     const list = tag ? PROJECTS.filter((p) => p.tags.includes(tag)) : PROJECTS
     if (tag && list.length === 0) {
-      return {
-        lines: [
-          line(`projects: no project tagged '${tag}'`, "error"),
-          line(`Known tags: ${PROJECT_TAGS.join(", ")}`, "muted"),
-        ],
-      }
+      return { lines: [line(`projects: no project tagged '${tag}'`, "error"), line(`Known tags: ${PROJECT_TAGS.join(", ")}`, "muted")] }
     }
     if (list.length === 0) return { lines: [line("No projects listed yet.", "muted")] }
     const width = Math.max(...list.map((p) => projectSlug(p).length)) + 2
@@ -155,42 +148,33 @@ const handlers: Record<string, Handler> = {
   },
 
   project: (args) => {
-    const query = args.join(" ")
-    if (!query) {
-      return {
-        lines: [
-          line("usage: project <id|name>", "error"),
-          line(`Try: project ${PROJECTS[0] ? projectSlug(PROJECTS[0]) : "<name>"}`, "muted"),
-        ],
-      }
-    }
-    const p = findProject(query)
-    if (!p) {
-      return {
-        lines: [
-          line(`project: '${query}' not found`, "error"),
-          line("Run 'projects' to see the list.", "muted"),
-        ],
-      }
-    }
+    const found = projectArgument("project", args.join(" "))
+    if ("lines" in found) return found
+    const p = found.project
     const out: TerminalLine[] = [line(p.name, "accent")]
     if (p.role) out.push(line(`${pad("role", 8)}${p.role}`))
     if (p.status) out.push(line(`${pad("status", 8)}${p.status}`, "success"))
-    out.push(line(`${pad("tech", 8)}${p.tech.join(", ")}`))
-    out.push(line(`${pad("tags", 8)}${p.tags.join(", ")}`))
-    out.push(blank())
-    out.push(line(p.description))
+    out.push(line(`${pad("tech", 8)}${p.tech.join(", ")}`), line(`${pad("tags", 8)}${p.tags.join(", ")}`), blank(), line(p.description))
     if (p.repo || p.demo) out.push(blank())
     if (p.repo) out.push(line(`${pad("repo", 8)}${p.repo}`, "default", p.repo))
     if (p.demo) out.push(line(`${pad("demo", 8)}${p.demo}`, "default", p.demo))
     return { lines: out }
   },
 
+  open: (args) => {
+    const found = projectArgument("open", args.join(" "))
+    if ("lines" in found) return found
+    const p = found.project
+    const url = p.repo ?? p.demo
+    if (!url) return { lines: [line(`open: ${p.name} has no repository or demo link`, "error")] }
+    window.open(url, "_blank", "noopener,noreferrer")
+    return { lines: [line(`Opening ${p.name} in a new tab...`, "success"), line(url, "default", url)] }
+  },
+
   tools: () => {
-    const names = TOOLS.map((t) => t.name)
     const rows: TerminalLine[] = []
-    for (let i = 0; i < names.length; i += 3) {
-      rows.push(line("  " + names.slice(i, i + 3).map((n) => pad(n, 14)).join("").trimEnd()))
+    for (let i = 0; i < TOOLS.length; i += 3) {
+      rows.push(line("  " + TOOLS.slice(i, i + 3).map((t) => pad(t.name, 14)).join("").trimEnd()))
     }
     return { lines: [line("Tools and technologies:", "accent"), ...rows] }
   },
@@ -198,7 +182,7 @@ const handlers: Record<string, Handler> = {
   contact: () => {
     const out: TerminalLine[] = [line("Contact:", "accent")]
     if (SOCIALS.email) out.push(line(`${pad("email", 10)} ${SOCIALS.email}`, "default", `mailto:${SOCIALS.email}`))
-    out.push(...socialLines())
+    for (const [label, url] of SOCIAL_LINKS) if (url) out.push(line(`${pad(label, 10)} ${url}`, "default", url))
     return { lines: out }
   },
 
@@ -232,14 +216,13 @@ const handlers: Record<string, Handler> = {
         continue
       }
       const entries = listDir(node)
-      if (long) {
-        const width = Math.max(1, ...entries.map(({ node: n }) => String(n.kind === "file" ? n.content.length : 0).length))
-        for (const { name, node: n } of entries) {
-          const size = n.kind === "file" ? n.content.length : 0
-          out.push(line(`${n.kind === "dir" ? "drwxr-xr-x" : "-rw-r--r--"}  ${String(size).padStart(width)}  ${name}${n.kind === "dir" ? "/" : ""}`, n.kind === "dir" ? "accent" : undefined))
-        }
-      } else {
-        out.push(...entries.map(({ name, node: n }) => line(`${name}${n.kind === "dir" ? "/" : ""}`, n.kind === "dir" ? "accent" : undefined)))
+      const sizeOf = (n: VfsNode) => (n.kind === "file" ? n.content.length : 0)
+      const width = Math.max(1, ...entries.map(({ node: n }) => String(sizeOf(n)).length))
+      for (const { name, node: n } of entries) {
+        const isDir = n.kind === "dir"
+        const label = `${name}${isDir ? "/" : ""}`
+        const text = long ? `${isDir ? "drwxr-xr-x" : "-rw-r--r--"}  ${String(sizeOf(n)).padStart(width)}  ${label}` : label
+        out.push(line(text, isDir ? "accent" : undefined))
       }
     }
     return { lines: out }
@@ -253,6 +236,7 @@ const handlers: Record<string, Handler> = {
       if (!node) out.push(...(baitForPath("cat", p, resolvePath(cwd, p)) ?? [line(`cat: ${p}: No such file or directory`, "error")])) // bait:
       else if (node.kind === "dir") out.push(line(`cat: ${p}: Is a directory`, "error"))
       else {
+        // Judul markdown disorot, kutipan diredupkan, dan URL pertama di baris jadi link.
         for (const text of node.content.replace(/\n$/, "").split("\n")) {
           const url = text.match(/https?:\/\/\S+/)?.[0]
           out.push(line(text, text.startsWith("#") ? "accent" : text.startsWith(">") ? "muted" : undefined, url))
@@ -286,43 +270,10 @@ const handlers: Record<string, Handler> = {
     return { lines: out }
   },
 
-  open: (args) => {
-    const query = args.join(" ")
-    if (!query) {
-      return {
-        lines: [
-          line("usage: open <id|name>", "error"),
-          line(`Try: open ${PROJECTS[0] ? projectSlug(PROJECTS[0]) : "<name>"}`, "muted"),
-        ],
-      }
-    }
-    const p = findProject(query)
-    if (!p) {
-      return {
-        lines: [
-          line(`open: '${query}' not found`, "error"),
-          line("Run 'projects' to see the list.", "muted"),
-        ],
-      }
-    }
-    const url = p.repo ?? p.demo
-    if (!url) return { lines: [line(`open: ${p.name} has no repository or demo link`, "error")] }
-    window.open(url, "_blank", "noopener,noreferrer")
-    return {
-      lines: [
-        line(`Opening ${p.name} in a new tab...`, "success"),
-        line(url, "default", url),
-      ],
-    }
-  },
-
   theme: (args) => {
     const arg = args[0]?.toLowerCase()
-    if (arg && arg !== "dark" && arg !== "light" && arg !== "toggle") {
-      return { lines: [line("usage: theme [dark|light]", "error")] }
-    }
-    const next: Theme =
-      arg === "dark" || arg === "light" ? arg : getTheme() === "dark" ? "light" : "dark"
+    if (arg && arg !== "dark" && arg !== "light" && arg !== "toggle") return { lines: [line("usage: theme [dark|light]", "error")] }
+    const next: Theme = arg === "dark" || arg === "light" ? arg : getTheme() === "dark" ? "light" : "dark"
     setTheme(next)
     return { lines: [line(`Theme set to ${next}.`, "success")] }
   },
@@ -352,10 +303,8 @@ function dispatch(argv: string[], ctx: CommandContext): TerminalResult | Promise
   const [rawName, ...args] = argv
   const name = rawName.toLowerCase()
   const handler = Object.prototype.hasOwnProperty.call(handlers, name) ? handlers[name] : undefined
-  // bait: classic first moves (sudo, rm -rf, nmap, private IPs) get a "nice try"
-  const bait = handler
-    ? (REMOTE_COMMANDS as readonly string[]).includes(name) ? baitForNetworkTarget(name, args) : null
-    : baitForCommand(rawName, args)
+  // bait: langkah pertama yang klasik (sudo, rm -rf, nmap, IP privat) dijawab "nice try"
+  const bait = handler ? (isRemote(name) ? baitForNetworkTarget(name, args) : null) : baitForCommand(rawName, args)
   if (bait) return { lines: bait }
   if (!handler) {
     const hint = isFilter(name)
@@ -377,13 +326,13 @@ export function runCommand(input: string, ctx: CommandContext): TerminalResult |
   if (filters.length === 0) return dispatch(command, ctx)
 
   const unknown = filters.find((stage) => !isFilter(stage[0].toLowerCase()))
-  const pipedBait = unknown && baitForCommand(unknown[0], unknown.slice(1)) // bait: "... | sh" and friends
+  const pipedBait = unknown && baitForCommand(unknown[0], unknown.slice(1)) // bait: "... | sh" dan sejenisnya
   if (pipedBait) return { lines: pipedBait }
   if (unknown) {
     return { lines: [line(`${unknown[0]}: not available after a pipe (use grep, head, tail, sort, uniq or wc)`, "error")] }
   }
 
-  // With filters, the command's output is collected first and shown only after the last filter.
+  // Dengan filter, output perintah dikumpulkan dulu dan baru ditampilkan setelah filter terakhir.
   const collected: TerminalLine[] = []
   const finish = (result: TerminalResult): TerminalResult => {
     let lines = [...collected, ...result.lines]
@@ -425,14 +374,7 @@ export function complete(input: string): Completion {
   }
 
   const command = parts[0].toLowerCase()
-  const partial = parts.slice(1).join(" ").toLowerCase()
-  let pool: string[] = []
-  if (command === "help") pool = TERMINAL_COMMANDS.map((c) => c.command)
-  else if (command === "project" || command === "open") pool = PROJECTS.map(projectSlug)
-  else if (command === "theme") pool = ["dark", "light"]
-  else if ((REMOTE_COMMANDS as readonly string[]).includes(command)) pool = [SITE_DOMAIN]
-  else if (command === "projects") pool = PROJECT_TAGS
-  else if (command === "cd" || command === "ls" || command === "cat" || command === "tree") {
+  if (command === "cd" || command === "ls" || command === "cat" || command === "tree") {
     const lastArg = parts[parts.length - 1]
     const head = leading.slice(0, leading.length - lastArg.length)
     const paths = completePath(cwd, lastArg, command === "cd")
@@ -440,6 +382,14 @@ export function complete(input: string): Completion {
     if (paths.length === 1) return { value: `${head}${paths[0]}${paths[0].endsWith("/") ? "" : " "}`, candidates: [] }
     return { value: `${head}${commonPrefix(paths)}`, candidates: paths.map((p) => p.slice(p.lastIndexOf("/", p.length - 2) + 1)) }
   }
+
+  let pool: string[] = []
+  if (command === "help") pool = TERMINAL_COMMANDS.map((c) => c.command)
+  else if (command === "project" || command === "open") pool = PROJECTS.map(projectSlug)
+  else if (command === "theme") pool = ["dark", "light"]
+  else if (isRemote(command)) pool = [SITE_DOMAIN]
+  else if (command === "projects") pool = PROJECT_TAGS
+  const partial = parts.slice(1).join(" ").toLowerCase()
   const matches = pool.filter((v) => v.startsWith(partial))
   if (matches.length === 0) return { value: input, candidates: [] }
   if (matches.length === 1) return { value: `${command} ${matches[0]}`, candidates: [] }

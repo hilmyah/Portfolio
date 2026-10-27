@@ -1,11 +1,26 @@
+import * as React from "react"
 import type { CSSProperties } from "react"
-import { ABOUT, TOOLS, PROFILE } from "@/data"
-import { Tooltip } from "@/components/ui/tooltip"
+import { ABOUT, PROFILE, TOOLS } from "@/data"
 import { Reveal } from "@/components/Reveal"
+import { Tooltip } from "@/components/ui/tooltip"
+import { usePauseOffscreen } from "@/lib/usePauseOffscreen"
+
+/** Posisi miring "tempelan" tiap ikon. Dihitung dari urutannya, jadi selalu sama di setiap kunjungan. */
+function toolStyle(i: number): CSSProperties {
+  const rot = ((i * 17) % 7) - 3
+  const y = ((i * 23) % 6) - 3
+  const x = ((i * 31) % 6) - 3
+  const cycle = 6 + ((i * 7) % 5) // detik per putaran; keyframes berisi 10 putaran (index.css)
+  // --tilt diisi saat hover; ditaruh di transform karena properti rotate dipakai animasi idle.
+  return { transform: `translate(${x}px, ${y}px) rotate(calc(${rot}deg + var(--tilt, 0deg)))`, "--idle-dur": `${cycle * 10}s` } as CSSProperties
+}
 
 export function About() {
+  const sectionRef = React.useRef<HTMLElement | null>(null)
+  usePauseOffscreen(sectionRef)
+
   return (
-    <section id="about" className="relative scroll-mt-32 mx-auto max-w-6xl px-4 py-16">
+    <section ref={sectionRef} id="about" className="relative scroll-mt-32 mx-auto max-w-6xl px-4 py-16">
       <div className="grid gap-8 md:grid-cols-[1.2fr_1fr] items-start">
         <Reveal className="relative">
           <div className="rounded-xl border border-border bg-card p-6 card-shadow relative">
@@ -24,30 +39,26 @@ export function About() {
 
         <Reveal className="relative" delay={140}>
           <div className="flex flex-wrap gap-3">
-            {TOOLS.map((t, i) => {
-              const rot = ((i * 17) % 7) - 3
-              const y = ((i * 23) % 6) - 3
-              const x = ((i * 31) % 6) - 3
-              const dur = 6 + ((i * 7) % 5)
-              return (
-                <Tooltip key={t.name} content={<div><span className="font-semibold">{t.name}</span></div>}>
-                  {/* polish: tools-stagger. Each icon pops in a little after the previous one. */}
-                  <span className="tool-pop inline-block" style={{ "--i": i } as CSSProperties}>
-                  <img
-                    src={t.icon}
-                    alt={`${t.name} icon`}
-                    className={`h-10 w-10 md:h-12 md:w-12 rounded-md border border-border bg-card p-2 shadow dark:border-neutral-300 dark:bg-neutral-100 transition-transform hover:scale-110 hover:-rotate-2 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring animate-indie-idle`}
-                    style={{ transform: `translate(calc(${x}px + var(--idle-tx)), calc(${y}px + var(--idle-ty))) rotate(calc(${rot}deg + var(--idle-rot)))`, '--idle-dur': `${dur}s` } as CSSProperties}
-                  />
+            {TOOLS.map((tool, i) => (
+              <Tooltip key={tool.name} content={<div><span className="font-semibold">{tool.name}</span></div>}>
+                {/* .tool-pop: ikon muncul bergantian setelah bagian ini terlihat */}
+                <span className="tool-pop inline-block" style={{ "--i": i } as CSSProperties}>
+                  {/* .tool-icon: ikon bergerak pelan dengan bayangan yang "bernapas" (index.css) */}
+                  <span className="tool-icon rounded-md transition-transform hover:scale-110 hover:[--tilt:-2deg]" style={toolStyle(i)}>
+                    <span aria-hidden className="tool-shadow tool-shadow-rest" />
+                    <span aria-hidden className="tool-shadow tool-shadow-lift" />
+                    <img
+                      src={tool.icon}
+                      alt={`${tool.name} icon`}
+                      className="block h-10 w-10 md:h-12 md:w-12 rounded-md border border-border bg-card p-2 shadow dark:border-neutral-300 dark:bg-neutral-100 hover:shadow-lg"
+                    />
                   </span>
-                </Tooltip>
-              )
-            })}
+                </span>
+              </Tooltip>
+            ))}
           </div>
         </Reveal>
       </div>
     </section>
   )
 }
-
-

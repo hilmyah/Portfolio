@@ -2,25 +2,16 @@ import * as React from "react"
 import { PROFILE } from "@/data"
 import { MusicPlayer } from "@/components/MusicPlayer"
 import { prefersReducedMotion } from "@/lib/theme"
+import { usePauseOffscreen } from "@/lib/usePauseOffscreen"
 
-// Activity stickers as emojis (no text labels)
-const stickers = [
-  { label: "code", emoji: "💻" },
-  { label: "coffee", emoji: "☕" },
-  { label: "guitar", emoji: "🎸" },
-  { label: "books", emoji: "📚" },
-  { label: "film", emoji: "🎬" },
-  { label: "fashion", emoji: "🧥" },
-  { label: "music", emoji: "🎵" },
-  { label: "nature", emoji: "⛰️" },
-  { label: "bakery", emoji: "🥐" },
-  { label: "cycling", emoji: "🚴" },
-  { label: "craft", emoji: "✂️" },
-]
+// Stiker hobi di sekitar foto. Posisinya diacak sekali per pengunjung lalu disimpan di
+// localStorage, supaya tidak berpindah-pindah setiap halaman dibuka.
+const STICKER_EMOJIS = ["💻", "☕", "🎸", "📚", "🎬", "🧥", "🎵", "⛰️", "🥐", "🚴", "✂️"]
 
-type Side = "top" | "right" | "bottom" | "left"
+// Naikkan versi key ini kalau bentuk datanya berubah, supaya layout lama tidak dipakai lagi.
+const STORAGE_KEY = "heroStickerInstances:v10"
 
-type FreeSticker = {
+type Sticker = {
   id: number
   emoji: string
   topPct: number
@@ -33,195 +24,182 @@ type FreeSticker = {
   durationMs: number
 }
 
-// Indie scrapbook layout constants
-const STORAGE_KEY = 'heroStickerInstances:v10'
+type Side = "top" | "right" | "bottom" | "left"
+type Range = readonly [number, number]
+
 const MAX_ATTEMPTS = 64
-const MIN_DISTANCE_PCT = 7
-const CONTAINER_PADDING = 12
-const OUTSIDE_DISTANCE_RANGE: readonly [number, number] = [12, 22]
-const EDGE_OFFSET_RANGE: readonly [number, number] = [-4, 4]
-const TANGENT_RANGE: readonly [number, number] = [-14, 14]
-const ROTATE_RANGE: readonly [number, number] = [-9, 9]
-const SCALE_OUTSIDE_RANGE: readonly [number, number] = [1.02, 1.15]
-const SCALE_EDGE_RANGE: readonly [number, number] = [0.95, 1.06]
-const DELAY_RANGE: readonly [number, number] = [0, 900]
-const DURATION_RANGE: readonly [number, number] = [3400, 6400]
+const MIN_DISTANCE_PCT = 7 // jarak minimum antar stiker, dalam persen ukuran kolom
+const EDGE_PADDING = 12 // px dari sudut kartu foto
+const OUTSIDE_DISTANCE: Range = [12, 22] // px di luar tepi kartu
+const EDGE_OFFSET: Range = [-4, 4] // px dari tepi kartu, untuk stiker yang menempel di tepi
+const TANGENT_JITTER: Range = [-14, 14]
+const ROTATE: Range = [-9, 9]
+const SCALE_OUTSIDE: Range = [1.02, 1.15]
+const SCALE_EDGE: Range = [0.95, 1.06]
+const DELAY_MS: Range = [0, 900]
+const DURATION_MS: Range = [3400, 6400]
 
-function rng(min: number, max: number): number {
-  return Math.random() * (max - min) + min
-}
+const random = ([min, max]: Range) => Math.random() * (max - min) + min
 
-function shuffleInPlace<T>(arr: T[]): void {
-  for (let i = arr.length - 1; i > 0; i--) {
+function shuffle<T>(items: T[]): T[] {
+  const copy = [...items]
+  for (let i = copy.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
-    const tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp
+    ;[copy[i], copy[j]] = [copy[j], copy[i]]
   }
+  return copy
 }
 
-function loadSavedLayout(): FreeSticker[] | null {
+function loadLayout(): Sticker[] | null {
   try {
-    if (typeof window === 'undefined') return null
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as FreeSticker[]
-    if (!Array.isArray(parsed) || parsed.length !== stickers.length) return null
-    return parsed
-  } catch { return null }
-}
-
-function saveLayout(data: FreeSticker[]): void {
-  try {
-    if (typeof window === 'undefined') return
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+    const parsed = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "null") as Sticker[] | null
+    return Array.isArray(parsed) && parsed.length === STICKER_EMOJIS.length ? parsed : null
   } catch {
-    // localStorage unavailable (private mode); layout is regenerated on next load
+    return null
   }
 }
 
-function pickSidesSequence(count: number): Side[] {
-  const base: Side[] = ["top", "right", "bottom", "left"]
-  const seq = Array.from({ length: count }, (_, i) => base[i % base.length])
-  shuffleInPlace(seq)
-  return seq
+function saveLayout(layout: Sticker[]) {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(layout))
+  } catch {
+    // localStorage tidak tersedia: layout diacak lagi di kunjungan berikutnya
+  }
 }
 
-function generateLayout(containerRect: DOMRect, cardRect: DOMRect, pool: { emoji: string }[]): FreeSticker[] {
-  const poolCopy = [...pool]
-  shuffleInPlace(poolCopy)
-  const placed: FreeSticker[] = []
-  const sides = pickSidesSequence(poolCopy.length)
+/** Titik acak di salah satu sisi kartu, sedikit di luar (60%) atau tepat di tepinya (40%). */
+function pointNear(card: DOMRect, side: Side): { x: number; y: number; outside: boolean } {
+  const outside = Math.random() < 0.6
+  const t = (random([0.12, 0.88]) + random([0.12, 0.88])) / 2 // cenderung ke tengah sisi
+  const distance = random(OUTSIDE_DISTANCE)
+  const edge = random(EDGE_OFFSET)
+  const tangent = random(TANGENT_JITTER)
+  const alongX = card.left + EDGE_PADDING + t * (card.width - EDGE_PADDING * 2) + tangent
+  const alongY = card.top + EDGE_PADDING + t * (card.height - EDGE_PADDING * 2) + tangent
+  switch (side) {
+    case "top":
+      return { x: alongX, y: card.top + (outside ? -distance : -2 + edge), outside }
+    case "bottom":
+      return { x: alongX, y: card.bottom + (outside ? distance : 2 + edge), outside }
+    case "left":
+      return { x: card.left + (outside ? -distance : -2 + edge), y: alongY, outside }
+    case "right":
+      return { x: card.right + (outside ? distance : 2 + edge), y: alongY, outside }
+  }
+}
 
-  const placeOne = (emoji: string, index: number): FreeSticker => {
-    let candidate: FreeSticker | null = null
-    let attempts = 0
-    while (attempts < MAX_ATTEMPTS) {
-      attempts++
-      const side = sides[index]
-      const t = (rng(0.12, 0.88) + rng(0.12, 0.88)) / 2
-      const mode = Math.random() < 0.6 ? 'outside' : 'edge'
-      const outsideDist = rng(...OUTSIDE_DISTANCE_RANGE)
-      const edgeOffset = rng(...EDGE_OFFSET_RANGE)
-      const tangent = rng(...TANGENT_RANGE)
+function generateLayout(column: DOMRect, card: DOMRect): Sticker[] {
+  const emojis = shuffle(STICKER_EMOJIS)
+  const sides = shuffle(emojis.map((_, i): Side => (["top", "right", "bottom", "left"] as const)[i % 4]))
+  const placed: Sticker[] = []
 
-      let x = 0
-      let y = 0
-      if (side === 'top') {
-        y = cardRect.top + (mode === 'edge' ? -2 + edgeOffset : -outsideDist)
-        x = cardRect.left + CONTAINER_PADDING + t * (cardRect.width - CONTAINER_PADDING * 2) + tangent
-      } else if (side === 'bottom') {
-        y = cardRect.bottom + (mode === 'edge' ? 2 + edgeOffset : outsideDist)
-        x = cardRect.left + CONTAINER_PADDING + t * (cardRect.width - CONTAINER_PADDING * 2) + tangent
-      } else if (side === 'left') {
-        x = cardRect.left + (mode === 'edge' ? -2 + edgeOffset : -outsideDist)
-        y = cardRect.top + CONTAINER_PADDING + t * (cardRect.height - CONTAINER_PADDING * 2) + tangent
-      } else {
-        x = cardRect.right + (mode === 'edge' ? 2 + edgeOffset : outsideDist)
-        y = cardRect.top + CONTAINER_PADDING + t * (cardRect.height - CONTAINER_PADDING * 2) + tangent
+  emojis.forEach((emoji, id) => {
+    let sticker: Sticker | null = null
+    for (let attempt = 0; attempt < MAX_ATTEMPTS && !sticker; attempt++) {
+      const { x, y, outside } = pointNear(card, sides[id])
+      const candidate: Sticker = {
+        id,
+        emoji,
+        topPct: ((y - column.top) / column.height) * 100,
+        leftPct: ((x - column.left) / column.width) * 100,
+        rotateDeg: random(ROTATE),
+        scale: random(outside ? SCALE_OUTSIDE : SCALE_EDGE),
+        z: 20,
+        anim: Math.random() < 0.5 ? "bob" : "drift",
+        delayMs: Math.floor(random(DELAY_MS)),
+        durationMs: Math.floor(random(DURATION_MS)),
       }
-
-      const leftPct = ((x - containerRect.left) / containerRect.width) * 100
-      const topPct = ((y - containerRect.top) / containerRect.height) * 100
-
-      const rotateDeg = rng(...ROTATE_RANGE)
-      const scale = mode === 'outside' ? rng(...SCALE_OUTSIDE_RANGE) : rng(...SCALE_EDGE_RANGE)
-      const z = 20
-      const anim: FreeSticker['anim'] = Math.random() < 0.5 ? 'bob' : 'drift'
-      const delayMs = Math.floor(rng(...DELAY_RANGE))
-      const durationMs = Math.floor(rng(...DURATION_RANGE))
-
-      const attempt: FreeSticker = { id: index, emoji, topPct, leftPct, rotateDeg, scale, z, anim, delayMs, durationMs }
-
-      const farEnough = placed.every(p => {
-        const dx = p.leftPct - attempt.leftPct
-        const dy = p.topPct - attempt.topPct
-        const dist = Math.hypot(dx, dy)
-        return dist >= MIN_DISTANCE_PCT
-      })
-      if (farEnough) { candidate = attempt; break }
+      const farEnough = placed.every((p) => Math.hypot(p.leftPct - candidate.leftPct, p.topPct - candidate.topPct) >= MIN_DISTANCE_PCT)
+      if (farEnough) sticker = candidate
     }
-
-    if (!candidate) {
-      const leftPct = ((cardRect.left - containerRect.left) / containerRect.width) * 100 - 6 + rng(-3, 3)
-      const topPct = ((cardRect.top - containerRect.top) / containerRect.height) * 100 - 6 + rng(-3, 3)
-      candidate = { id: index, emoji, topPct, leftPct, rotateDeg: rng(-6, 6), scale: 1, z: 20, anim: 'bob', delayMs: 0, durationMs: 4200 }
-    }
-
-    return candidate
-  }
-
-  poolCopy.forEach((s, idx) => {
-    placed.push(placeOne(s.emoji, idx))
+    // Tidak menemukan tempat kosong: taruh dekat sudut kiri atas kartu.
+    placed.push(
+      sticker ?? {
+        id,
+        emoji,
+        topPct: ((card.top - column.top) / column.height) * 100 - 6 + random([-3, 3]),
+        leftPct: ((card.left - column.left) / column.width) * 100 - 6 + random([-3, 3]),
+        rotateDeg: random([-6, 6]),
+        scale: 1,
+        z: 20,
+        anim: "bob",
+        delayMs: 0,
+        durationMs: 4200,
+      }
+    )
   })
-
   return placed
 }
 
-export function Hero() {
-  const [instances, setInstances] = React.useState<FreeSticker[]>([])
-  const colRef = React.useRef<HTMLDivElement | null>(null)
-  const cardRef = React.useRef<HTMLDivElement | null>(null)
-
+/** Foto condong mengikuti kursor dengan kilau tipis. Hanya untuk mouse/trackpad. */
+function useTilt(area: React.RefObject<HTMLDivElement | null>, card: React.RefObject<HTMLDivElement | null>) {
   React.useEffect(() => {
-    const saved = loadSavedLayout()
-    if (saved) {
-      setInstances(saved)
-      return
-    }
-    const gen = () => {
-      const col = colRef.current
-      const card = cardRef.current
-      if (!col || !card) return
-      const layout = generateLayout(col.getBoundingClientRect(), card.getBoundingClientRect(), stickers)
-      setInstances(layout)
-      saveLayout(layout)
-    }
-    requestAnimationFrame(gen)
-  }, [])
-
-  // polish: hero-tilt. The photo leans toward the cursor with a soft glare (mouse/trackpad only).
-  React.useEffect(() => {
-    const col = colRef.current
-    const card = cardRef.current
-    if (!col || !card) return
+    const areaEl = area.current
+    const cardEl = card.current
+    if (!areaEl || !cardEl) return
     if (!window.matchMedia("(pointer: fine)").matches || prefersReducedMotion()) return
     let frame = 0
     const apply = (x: number, y: number) => {
       cancelAnimationFrame(frame)
       frame = requestAnimationFrame(() => {
-        card.style.setProperty("--tilt-x", `${(x * 7).toFixed(2)}deg`)
-        card.style.setProperty("--tilt-y", `${(-y * 7).toFixed(2)}deg`)
-        card.style.setProperty("--glare-x", `${(50 + x * 45).toFixed(1)}%`)
-        card.style.setProperty("--glare-y", `${(50 + y * 45).toFixed(1)}%`)
+        cardEl.style.setProperty("--tilt-x", `${(x * 7).toFixed(2)}deg`)
+        cardEl.style.setProperty("--tilt-y", `${(-y * 7).toFixed(2)}deg`)
+        cardEl.style.setProperty("--glare-x", `${(50 + x * 45).toFixed(1)}%`)
+        cardEl.style.setProperty("--glare-y", `${(50 + y * 45).toFixed(1)}%`)
       })
     }
+    const clamp = (v: number) => Math.max(-1, Math.min(1, v))
     const onMove = (e: PointerEvent) => {
-      const r = card.getBoundingClientRect()
-      const x = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1))
-      const y = Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height) * 2 - 1))
-      card.dataset.tilting = "true"
-      apply(x, y)
+      const r = cardEl.getBoundingClientRect()
+      cardEl.dataset.tilting = "true"
+      apply(clamp(((e.clientX - r.left) / r.width) * 2 - 1), clamp(((e.clientY - r.top) / r.height) * 2 - 1))
     }
     const onLeave = () => {
-      delete card.dataset.tilting
+      delete cardEl.dataset.tilting
       apply(0, 0)
     }
-    col.addEventListener("pointermove", onMove)
-    col.addEventListener("pointerleave", onLeave)
+    areaEl.addEventListener("pointermove", onMove)
+    areaEl.addEventListener("pointerleave", onLeave)
     return () => {
       cancelAnimationFrame(frame)
-      col.removeEventListener("pointermove", onMove)
-      col.removeEventListener("pointerleave", onLeave)
+      areaEl.removeEventListener("pointermove", onMove)
+      areaEl.removeEventListener("pointerleave", onLeave)
     }
+  }, [area, card])
+}
+
+export function Hero() {
+  const [stickers, setStickers] = React.useState<Sticker[]>([])
+  const columnRef = React.useRef<HTMLDivElement | null>(null)
+  const cardRef = React.useRef<HTMLDivElement | null>(null)
+  const sectionRef = React.useRef<HTMLElement | null>(null)
+  useTilt(columnRef, cardRef)
+  usePauseOffscreen(sectionRef)
+
+  React.useEffect(() => {
+    const saved = loadLayout()
+    if (saved) {
+      setStickers(saved)
+      return
+    }
+    // Ukuran kartu baru pasti setelah frame pertama selesai di-layout.
+    const frame = requestAnimationFrame(() => {
+      if (!columnRef.current || !cardRef.current) return
+      const layout = generateLayout(columnRef.current.getBoundingClientRect(), cardRef.current.getBoundingClientRect())
+      setStickers(layout)
+      saveLayout(layout)
+    })
+    return () => cancelAnimationFrame(frame)
   }, [])
 
   return (
-    <section id="hero" className="relative mx-auto max-w-6xl px-4 py-10 md:py-16">
+    <section ref={sectionRef} id="hero" className="relative mx-auto max-w-6xl px-4 py-10 md:py-16">
       <div className="grid gap-8 lg:grid-cols-2 items-start">
-        <div className="relative" ref={colRef}>
+        <div className="relative" ref={columnRef}>
           <div
+            ref={cardRef}
             className="hero-tilt relative z-10 mx-auto aspect-[7/9] w-72 md:w-80 rounded-[12px] border border-border bg-muted overflow-hidden shadow-[0_25px_50px_-12px_rgb(0_0_0_/_45%)] rotate-[-2deg]"
             aria-label="Portrait of Hilmy Adhyandra Hamzah"
-            ref={cardRef}
           >
             <img
               src={PROFILE.photo.src}
@@ -238,27 +216,31 @@ export function Hero() {
             <div className="pointer-events-none absolute -right-4 top-6 h-10 w-10 rotate-6 bg-[url('/img/clip.svg')] bg-contain bg-no-repeat opacity-80" />
             <span aria-hidden className="absolute -left-3 -bottom-3 h-10 w-24 rotate-[-4deg] bg-[url('/img/washi.svg')] bg-contain bg-no-repeat opacity-80" />
           </div>
-          {/* free-floating stickers around the card edges/outside; layered above the photo but away from center */}
+
+          {/* Stiker berada di atas foto, tapi diletakkan di tepi kartu supaya wajah tidak tertutup. */}
           <div className="absolute inset-0 z-20 pointer-events-none">
-            {instances.map((it) => (
+            {stickers.map((s) => (
               <span
-                key={it.id}
+                key={s.id}
                 aria-hidden
-                style={{
-                  top: `${it.topPct}%`,
-                  left: `${it.leftPct}%`,
-                  zIndex: it.z,
-                  "--rot": `${it.rotateDeg}deg`,
-                  "--scale": it.scale,
-                  animationDelay: `${it.delayMs}ms`,
-                  animationDuration: `${it.durationMs}ms`,
-                } as React.CSSProperties}
-                className={`absolute -translate-x-1/2 -translate-y-1/2 text-2xl md:text-3xl transition-transform duration-300 ease-out will-change-transform select-none sticker ${
-                  it.anim === "bob" ? "animate-bob-sticker" : "animate-drift-sticker"
-                } hover:[--scale:1.15] active:[--scale:.95] pointer-events-auto`}
                 role="img"
+                className={`sticker absolute text-2xl md:text-3xl transition-transform duration-300 ease-out select-none pointer-events-auto hover:[--scale:1.15] active:[--scale:.95] ${
+                  s.anim === "bob" ? "animate-bob-sticker" : "animate-drift-sticker"
+                }`}
+                style={
+                  {
+                    top: `${s.topPct}%`,
+                    left: `${s.leftPct}%`,
+                    zIndex: s.z,
+                    "--rot": `${s.rotateDeg}deg`,
+                    "--base-scale": s.scale,
+                    animationDelay: `${s.delayMs}ms`,
+                    // keyframes berisi 10 putaran (lihat catatan animasi di index.css)
+                    animationDuration: `${s.durationMs * 10}ms`,
+                  } as React.CSSProperties
+                }
               >
-                {it.emoji}
+                {s.emoji}
               </span>
             ))}
           </div>
@@ -271,5 +253,3 @@ export function Hero() {
     </section>
   )
 }
-
-

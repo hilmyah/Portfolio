@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 @import "@fontsource-variable/inter/wght.css";
 @import "@fontsource-variable/jetbrains-mono/wght.css";
 @import "@fontsource/patrick-hand/400.css";
@@ -47,7 +46,7 @@
 }
 
 :root {
-  --radius: 0.625rem;
+  --radius: 10px;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -119,15 +118,18 @@
   * {
     @apply border-border outline-ring/50;
   }
-  html { scroll-behavior: smooth; }
-  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
-    scroll-behavior: smooth;
   }
-  /* ensure content is above dark-mode vignette */
-  #root { position: relative; z-index: 1; }
+  /* konten berada di atas vignette mode gelap (body::before) */
+  #root {
+    position: relative;
+    z-index: 1;
+  }
 }
 
 @layer utilities {
@@ -151,107 +153,141 @@
     color: oklch(0.985 0 0);
   }
 }
-/* marquee animation */
-@keyframes marqueeMove { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-.animate-marquee { animation: marqueeMove 18s linear infinite; will-change: transform; }
 
-/* animated gradient pan for navbar strip */
-@keyframes pan {
-  0% { background-position: 0% 0%, 100% 0%; }
-  100% { background-position: 200% 0%, -100% 0%; }
-}
-.animate-pan { animation: pan 24s linear infinite; background-size: 200% 100%, 200% 100%; }
+/* ---------------------------------------------------------------- animasi dekorasi
+   Aturan untuk semua animasi yang berulang terus:
+   - hanya memakai transform, translate, rotate, scale atau opacity. Properti itu dijalankan
+     compositor browser, jadi main thread tetap kosong walau banyak stiker bergerak. Custom
+     property, filter, height atau background-position di dalam @keyframes memaksa browser
+     menghitung ulang style setiap frame; itulah sumber lag di versi sebelumnya.
+   - satu iterasi berisi 10 putaran (durasinya juga dikali 10). React memasang listener
+     animationiteration di root, jadi setiap akhir iterasi membangunkan main thread. Dengan 10
+     putaran per iterasi, browser 10 kali lebih jarang dibangunkan; gerakannya tetap sama. */
 
-/* gentle bob for chips */
+/* goyang naik-turun untuk stiker kecil (1 putaran 6 detik); --r memberi kemiringan awal */
 @keyframes bob {
-  0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
-  50% { transform: translateY(-4px) rotate(calc(var(--r, 0deg) * -1)); }
+  0%, 10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+  5%, 15%, 25%, 35%, 45%, 55%, 65%, 75%, 85%, 95% { transform: translateY(-4px) rotate(calc(var(--r, 0deg) * -1)); }
 }
-.animate-bob { animation: bob 6s ease-in-out infinite; }
+.animate-bob { animation: bob 60s ease-in-out infinite; }
 
-/* scribble scroll + sticker drift */
-@keyframes scribbleScroll { from { background-position-x: 0; } to { background-position-x: -400px; } }
-.animate-scribble { animation: scribbleScroll 20s linear infinite; }
+/* geser kiri-kanan (1 putaran 5 detik) */
 @keyframes driftX {
-  0% { transform: translateX(0) rotate(var(--r,0deg)); }
-  50% { transform: translateX(8px) rotate(calc(var(--r,0deg) + 1deg)); }
-  100% { transform: translateX(0) rotate(var(--r,0deg)); }
+  0%, 10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 100% { transform: translateX(0) rotate(var(--r, 0deg)); }
+  5%, 15%, 25%, 35%, 45%, 55%, 65%, 75%, 85%, 95% { transform: translateX(8px) rotate(calc(var(--r, 0deg) + 1deg)); }
 }
-.animate-drift { animation: driftX 5s ease-in-out infinite; }
+.animate-drift { animation: driftX 50s ease-in-out infinite; }
 
-/* sticker field animations that preserve base translate/rotate/scale */
+/* Stiker emoji di sekitar foto (Hero.tsx). Posisi, rotasi, skala dan durasi tiap stiker diisi lewat
+   inline style. translate -100% -100% sama dengan posisi versi lama (geser -50% dari class Tailwind
+   ditambah -50% dari transform), jadi layout stiker yang tersimpan tetap di tempat yang sama.
+   Gerakannya memakai properti translate dan rotate (bukan transform) supaya tidak menimpa rotasi dan
+   skala dasarnya. Saat hover, --scale dari class menggantikan --base-scale dari inline style. */
 .sticker {
-  transform:
-    translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, 0px)))
-    rotate(calc(var(--rot, 0deg) + var(--drot, 0deg)))
-    scale(var(--scale, 1));
+  translate: -100% -100%;
+  transform: rotate(var(--rot, 0deg)) scale(var(--scale, var(--base-scale, 1)));
 }
 @keyframes bobSticker {
-  0%, 100% { --dy: 0px; --drot: 0deg; }
-  50% { --dy: -6px; --drot: 1deg; }
+  0%, 10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 100% { translate: -100% -100%; rotate: 0deg; }
+  5%, 15%, 25%, 35%, 45%, 55%, 65%, 75%, 85%, 95% { translate: -100% calc(-100% - 6px); rotate: 1deg; }
 }
-.animate-bob-sticker { animation: bobSticker 6s ease-in-out infinite; }
+.animate-bob-sticker { animation: bobSticker 60s ease-in-out infinite; }
 @keyframes driftSticker {
-  0% { --dx: 0px; }
-  50% { --dx: 8px; }
-  100% { --dx: 0px; }
+  0%, 10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 100% { translate: -100% -100%; }
+  5%, 15%, 25%, 35%, 45%, 55%, 65%, 75%, 85%, 95% { translate: calc(-100% + 8px) -100%; }
 }
-.animate-drift-sticker { animation: driftSticker 5s ease-in-out infinite; }
+.animate-drift-sticker { animation: driftSticker 50s ease-in-out infinite; }
 
-/* original idle for tool icons (not bob/drift) */
-@keyframes indieIdle {
-  0%, 100% {
-    filter: drop-shadow(0 2px 0 rgba(0,0,0,.05)) drop-shadow(0 18px 28px rgba(0,0,0,.18));
-    --idle-tx: 0px; --idle-ty: 0px; --idle-rot: 0deg;
-  }
-  50% {
-    filter: drop-shadow(0 3px 0 rgba(0,0,0,.08)) drop-shadow(0 22px 36px rgba(0,0,0,.24));
-    --idle-tx: 1.5px; --idle-ty: -1.5px; --idle-rot: 0.6deg;
-  }
+/* Ikon tools (About.tsx) yang "bernapas": ikon sedikit bergeser dan bayangannya membesar.
+   Bayangan drop-shadow yang beranimasi tidak bisa dijalankan compositor, jadi dua keadaan
+   bayangannya digambar statis di dua elemen .tool-shadow lalu di-crossfade lewat opacity; hasilnya
+   sama dengan menganimasikan drop-shadow. Posisi dasar ikon ada di inline transform, jadi
+   gerakannya ditambahkan lewat translate dan rotate. --idle-dur (durasi 10 putaran) diisi inline. */
+.tool-icon {
+  position: relative;
+  display: inline-block;
+  isolation: isolate;
+  animation: toolFloat var(--idle-dur, 70s) ease-in-out infinite;
+  will-change: transform;
 }
-.animate-indie-idle {
-  --idle-tx: 0px; --idle-ty: 0px; --idle-rot: 0deg;
-  animation: indieIdle var(--idle-dur, 7s) ease-in-out infinite;
-  will-change: filter, transform;
+.tool-shadow {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--card);
+  pointer-events: none;
+  animation: var(--idle-dur, 70s) ease-in-out infinite;
+}
+.dark .tool-shadow { background: var(--color-neutral-100); }
+.tool-shadow-rest {
+  filter: drop-shadow(0 2px 0 rgba(0,0,0,.05)) drop-shadow(0 18px 28px rgba(0,0,0,.18));
+  animation-name: toolShadowRest;
+}
+.tool-shadow-lift {
+  filter: drop-shadow(0 3px 0 rgba(0,0,0,.08)) drop-shadow(0 22px 36px rgba(0,0,0,.24));
+  opacity: 0;
+  animation-name: toolShadowLift;
+}
+@keyframes toolFloat {
+  0%, 10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 100% { translate: 0 0; rotate: 0deg; }
+  5%, 15%, 25%, 35%, 45%, 55%, 65%, 75%, 85%, 95% { translate: 1.5px -1.5px; rotate: 0.6deg; }
+}
+@keyframes toolShadowRest {
+  0%, 10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 100% { opacity: 1; }
+  5%, 15%, 25%, 35%, 45%, 55%, 65%, 75%, 85%, 95% { opacity: 0; }
+}
+@keyframes toolShadowLift {
+  0%, 10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 100% { opacity: 0; }
+  5%, 15%, 25%, 35%, 45%, 55%, 65%, 75%, 85%, 95% { opacity: 1; }
 }
 
-/* player wobble and eq bars */
-@keyframes wobbleSoft { 0%,100%{ transform: rotate(0deg)} 50%{ transform: rotate(-0.8deg)} }
-.animate-wobble-soft { animation: wobbleSoft 2.2s ease-in-out infinite; }
-.eq-bar { display:inline-block; width:4px; height:10px; background: oklch(0.35 0 0); border-radius:2px }
-@keyframes eq { 0%{ height:8px } 50%{ height:18px } 100%{ height:8px } }
-.animate-eq { animation: eq 800ms ease-in-out infinite }
-.delay-100{ animation-delay:100ms }
-.delay-200{ animation-delay:200ms }
-.delay-300{ animation-delay:300ms }
-.delay-400{ animation-delay:400ms }
-
-/* scribble underline */
-@keyframes dash {
-  0% { background-position-x: 0; }
-  100% { background-position-x: 20px; }
+/* Sampul album bergoyang saat lagu diputar (MusicPlayer.tsx), 1 putaran 2,2 detik. */
+@keyframes wobbleSoft {
+  0%, 10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 100% { transform: rotate(0deg); }
+  5%, 15%, 25%, 35%, 45%, 55%, 65%, 75%, 85%, 95% { transform: rotate(-0.8deg); }
 }
+.animate-wobble-soft { animation: wobbleSoft 22s ease-in-out infinite; }
+
+/* Bar equalizer: batang setinggi 18px di dalam wadah yang memotongnya, lalu batangnya digeser
+   turun. Tinggi yang terlihat (18px dikurangi geserannya) sama persis dengan animasi tinggi 8px ke
+   18px, tapi geseran bisa dijalankan compositor. 1 putaran 0,8 detik; jeda tiap bar diisi inline. */
+.eq-bar { display: inline-block; width: 4px; height: 18px; border-radius: 2px; overflow: hidden; }
+.eq-bar > span { display: block; height: 100%; border-radius: inherit; background: oklch(0.35 0 0); translate: 0 8px; }
+.eq-bar > .animate-eq { animation: eq 8s ease-in-out infinite; }
+@keyframes eq {
+  0%, 10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 100% { translate: 0 10px; }
+  5%, 15%, 25%, 35%, 45%, 55%, 65%, 75%, 85%, 95% { translate: 0 0; }
+}
+
+/* Garis putus-putus berjalan di bawah judul section. Polanya (periode 20px) digambar di ::after
+   yang 200px lebih lebar dari judul, lalu digeser 200px dalam 12 detik: sama dengan 10 kali
+   geser 20px per 1,2 detik, dan loop-nya mulus karena polanya berulang. clip-path memotong
+   kelebihannya tanpa mengubah layout judul. */
 .underline-scribble {
+  position: relative;
+  padding-bottom: 3px;
+  clip-path: inset(-1em 0);
+}
+.underline-scribble::after {
+  content: "";
+  position: absolute;
+  left: -200px;
+  right: 0;
+  bottom: 0;
+  height: 2px;
   background-image: repeating-linear-gradient(90deg, currentColor 0 8px, transparent 8px 16px);
   background-size: 20px 2px;
   background-repeat: repeat-x;
-  background-position: 0 100%;
-  padding-bottom: 3px;
-  animation: dash 1.2s linear infinite;
+  animation: dash 12s linear infinite;
+  pointer-events: none;
+}
+@keyframes dash {
+  from { translate: 0 0; }
+  to { translate: 200px 0; }
 }
 
-/* ping ring */
-@keyframes pingSlow { 0% { transform: scale(1); opacity: .6 } 100% { transform: scale(1.6); opacity: 0 } }
-.ping-slow::after {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  border-radius: 12px;
-  border: 2px solid oklch(0.6 0 0 / .35);
-  animation: pingSlow 1.4s ease-out infinite;
-}
-
-/* Dark mode depth: vignette + texture overlay and stronger paper shadow */
+/* mode gelap: vignette dan tekstur kertas di belakang konten, bayangan kertas lebih tegas */
 .dark body::before {
   content: "";
   position: fixed;
@@ -273,8 +309,8 @@
     inset 0 0 0 1px rgba(255,255,255,.05);
 }
 
-
-/* scrapbook/vkei scrollbars */
+/* ---------------------------------------------------------------- scrollbar
+   Sengaja di luar @layer: aturan tanpa layer selalu menang atas utility Tailwind. */
 * {
   scrollbar-width: thin;
   scrollbar-color: oklch(0.6 0 0) oklch(0.95 0 0);
@@ -288,7 +324,7 @@
 }
 *::-webkit-scrollbar-thumb {
   background:
-    linear-gradient(180deg, rgba(0,0,0,.15) 0 10%, transparent 10%), /* top cap shadow */
+    linear-gradient(180deg, rgba(0,0,0,.15) 0 10%, transparent 10%),
     repeating-linear-gradient(135deg,
       rgba(0,0,0,.6) 0 6px,
       rgba(0,0,0,.2) 6px 12px
@@ -304,9 +340,13 @@
   filter: brightness(1.05) contrast(1.05);
 }
 *::-webkit-scrollbar-corner { background: transparent; }
+/* Area yang digeser langsung (judul dan artis di music player) tidak menampilkan scrollbar. */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
 
-/* animated sketch wobble while scrolling */
-html.is-scrolling *::-webkit-scrollbar-thumb {
+/* Scrollbar halaman bergoyang sebentar saat di-scroll; class-nya dipasang App.tsx. Selector di
+   bawah hanya untuk <html>, jadi ganti class tidak menghitung ulang style seluruh halaman. */
+html.is-scrolling::-webkit-scrollbar-thumb {
   animation: wobble 0.35s ease;
 }
 @keyframes wobble {
@@ -316,7 +356,7 @@ html.is-scrolling *::-webkit-scrollbar-thumb {
   100% { transform: rotate(0deg) }
 }
 
-/* lightweight stacked page flips (full width, top-right peel) */
+/* ---------------------------------------------------------------- ganti tema: lembaran kertas terbuka dari pojok kanan atas */
 .theme-pageflip { position: fixed; inset: 0; z-index: 70; pointer-events: none; perspective: 1400px; transform: translateZ(0); contain: layout paint; }
 .theme-pageflip .sheet {
   position: absolute; top: 0; right: 0; width: 100vw; height: 100vh;
@@ -337,15 +377,32 @@ html.is-scrolling *::-webkit-scrollbar-thumb {
 }
 @media (prefers-reduced-motion: reduce) { .theme-pageflip .sheet { animation-duration: 360ms } }
 
-/* scroll reveal: sections fade and settle into place once they enter the viewport */
+/* ---------------------------------------------------------------- muncul saat di-scroll (Reveal.tsx) */
 .reveal {
   opacity: 0;
   transform: translateY(18px) rotate(-0.4deg);
   transition: opacity 600ms ease, transform 700ms cubic-bezier(.2,.7,.2,1);
 }
 .reveal.is-revealed { opacity: 1; transform: none; }
+/* Animasi dekorasi di dalam bagian yang belum muncul baru dimulai setelah bagiannya terlihat.
+   Elemen dengan opacity 0 tidak digambar, dan animasi compositor yang menunggu elemennya
+   digambar membuat browser terus bekerja setiap frame. */
+.reveal:not(.is-revealed) *,
+.reveal:not(.is-revealed) *::before,
+.reveal:not(.is-revealed) *::after { animation-name: none; }
+/* Bagian yang sedang jauh dari layar (data-offscreen, lihat usePauseOffscreen.ts): animasinya diam. */
+[data-offscreen] *,
+[data-offscreen] *::before,
+[data-offscreen] *::after { animation-play-state: paused !important; }
+/* Selama halaman di-scroll (html.is-scrolling, dari App.tsx) stiker dan ikon dekorasi berhenti
+   sebentar, lalu jalan lagi 250 ms setelah scroll selesai. Animasi yang berjalan dihitung ulang di
+   setiap frame scroll; tanpa jeda ini scroll terasa berat di HP. Piringan hitam dan equalizer tidak
+   ikut berhenti karena menandakan lagu sedang diputar. */
+html.is-scrolling :is(.animate-bob, .animate-drift, .animate-bob-sticker, .animate-drift-sticker, .tool-icon, .tool-shadow),
+html.is-scrolling .underline-scribble::after { animation-play-state: paused !important; }
 
-/* terminal window: pops in as a title bar, then the body unrolls downward */
+/* ---------------------------------------------------------------- terminal (TerminalWindow.tsx)
+   Jendela muncul sebagai title bar, lalu isinya terbuka ke bawah. */
 .terminal-window {
   opacity: 0;
   transform: translateY(26px) scale(.96);
@@ -375,10 +432,21 @@ html.is-scrolling *::-webkit-scrollbar-thumb {
   display: inline-block; width: .6em; height: 1.15em; vertical-align: text-bottom;
   background: #fcd34d; animation: terminalBlink 1s steps(1) infinite;
 }
+/* Selama jendela masih tertutup kursornya tidak terlihat; jangan biarkan berkedip di belakang layar. */
+.terminal-window:not([data-open="true"]) .terminal-cursor { animation: none; }
 @keyframes terminalBlink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+/* garis scan, vignette dan pendaran fosfor tipis di layar terminal */
+.terminal-crt {
+  position: absolute; inset: 0 0 2.5rem 0; z-index: 1; pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom, rgba(255,255,255,.03) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at 50% 50%, transparent 60%, rgba(0,0,0,.4) 100%);
+}
+.terminal-glow { text-shadow: 0 0 7px color-mix(in srgb, currentColor 32%, transparent); }
 
-/* music player seek bar: the played part (left of the thumb) shows the album-cover gradient
-   from public/img/album1.svg; the rest stays muted. --p is set inline from the progress. */
+/* ---------------------------------------------------------------- music player (MusicPlayer.tsx)
+   Bagian seek bar yang sudah diputar memakai gradasi sampul album (public/img/album1.svg), sisanya
+   abu-abu. --p (persentase) diisi inline dari progres lagu. */
 .seek-fill {
   --seek-from: #b5c0ff;
   --seek-to: #ffd6e0;
@@ -388,10 +456,30 @@ html.is-scrolling *::-webkit-scrollbar-thumb {
 }
 .seek-fill::-moz-range-track { background: transparent; }
 
-/* ---------------------------------------------------------------- polish
-   Each block below is optional decoration. Search for "polish:" to find the matching component code. */
+/* Piringan hitam yang keluar dari balik sampul dan berputar saat lagu diputar. */
+.vinyl {
+  position: absolute; top: 6%; left: 6%; width: 88%; aspect-ratio: 1; border-radius: 9999px; z-index: 0;
+  background:
+    radial-gradient(circle at 50% 50%, #111 0 2.5%, #f59e0b 2.6% 15%, #b45309 15.2% 16%, transparent 16.2%),
+    radial-gradient(circle at 56% 44%, #fde68a 0 1.6%, transparent 1.8%),
+    conic-gradient(from 0deg, transparent 0 35deg, rgba(255,255,255,.12) 55deg, transparent 75deg 215deg, rgba(255,255,255,.09) 235deg, transparent 255deg),
+    repeating-radial-gradient(circle at 50% 50%, #161616 0 1.5px, #242424 1.5px 3px);
+  box-shadow: 0 12px 28px -12px rgba(0,0,0,.55);
+  translate: 0 0;
+  transition: translate 650ms cubic-bezier(.2,.8,.2,1);
+  animation: vinylSpin 26s linear infinite; /* 10 putaran per iterasi, lihat catatan animasi di atas */
+  animation-play-state: paused;
+}
+.vinyl[data-playing="true"] { translate: 20% 0; animation-play-state: running; }
+/* Satu kolom (layar kecil): sampul memenuhi kartu, jadi piringan hanya mengintip ke padding kartu. */
+@media (max-width: 767px) { .vinyl[data-playing="true"] { translate: 11% 0; } }
+/* Tema gelap: tepi tipis supaya piringan hitam tidak hilang di kartu yang gelap. */
+.dark .vinyl { box-shadow: 0 0 0 1px rgba(255,255,255,.14), 0 12px 28px -12px rgba(0,0,0,.8); }
+@keyframes vinylSpin { to { rotate: 3600deg; } }
 
-/* polish: hero-tilt (Hero.tsx) */
+/* ---------------------------------------------------------------- hiasan interaksi lain */
+
+/* Foto di Hero miring mengikuti kursor dengan kilau tipis (hanya mouse/trackpad). */
 .hero-tilt {
   transform: perspective(900px) rotateX(var(--tilt-y, 0deg)) rotateY(var(--tilt-x, 0deg));
   transition: transform 550ms cubic-bezier(.2,.8,.2,1);
@@ -405,7 +493,7 @@ html.is-scrolling *::-webkit-scrollbar-thumb {
 }
 .hero-tilt[data-tilting="true"]::after { opacity: 1; }
 
-/* polish: tools-stagger (About.tsx) */
+/* Ikon tools muncul bergantian setelah bagian About terlihat; --i adalah urutan ikon. */
 .reveal .tool-pop { opacity: 0; scale: .5; translate: 0 10px; }
 .reveal.is-revealed .tool-pop {
   opacity: 1; scale: 1; translate: 0 0;
@@ -413,7 +501,7 @@ html.is-scrolling *::-webkit-scrollbar-thumb {
   transition-delay: calc(var(--i, 0) * 45ms + 180ms);
 }
 
-/* polish: scrollspy (Navbar.tsx) */
+/* Garis bawah menu navigasi untuk bagian yang sedang terlihat (scrollspy di Navbar.tsx). */
 .nav-link { position: relative; }
 .nav-link::after {
   content: ""; position: absolute; left: .75rem; right: .75rem; bottom: .3rem; height: 2px; border-radius: 2px;
@@ -422,16 +510,7 @@ html.is-scrolling *::-webkit-scrollbar-thumb {
 }
 .nav-link[aria-current="location"]::after { transform: scaleX(1); }
 
-/* polish: crt (Terminal.tsx) */
-.terminal-crt {
-  position: absolute; inset: 0 0 2.5rem 0; z-index: 1; pointer-events: none;
-  background:
-    repeating-linear-gradient(to bottom, rgba(255,255,255,.03) 0 1px, transparent 1px 3px),
-    radial-gradient(ellipse at 50% 50%, transparent 60%, rgba(0,0,0,.4) 100%);
-}
-.terminal-glow { text-shadow: 0 0 7px color-mix(in srgb, currentColor 32%, transparent); }
-
-/* polish: link-underline (Footer.tsx) */
+/* Garis bawah link sosial media yang memanjang saat hover (Footer.tsx). */
 .link-grow {
   background: linear-gradient(currentColor, currentColor) left 100% / 0% 1.5px no-repeat;
   padding-bottom: 1px;
@@ -439,38 +518,20 @@ html.is-scrolling *::-webkit-scrollbar-thumb {
 }
 a:hover .link-grow, a:focus-visible .link-grow { background-size: 100% 1.5px; }
 
-/* polish: vinyl (MusicPlayer.tsx) */
-.vinyl {
-  position: absolute; top: 6%; left: 6%; width: 88%; aspect-ratio: 1; border-radius: 9999px; z-index: 0;
-  background:
-    radial-gradient(circle at 50% 50%, #111 0 2.5%, #f59e0b 2.6% 15%, #b45309 15.2% 16%, transparent 16.2%),
-    radial-gradient(circle at 56% 44%, #fde68a 0 1.6%, transparent 1.8%),
-    conic-gradient(from 0deg, transparent 0 35deg, rgba(255,255,255,.12) 55deg, transparent 75deg 215deg, rgba(255,255,255,.09) 235deg, transparent 255deg),
-    repeating-radial-gradient(circle at 50% 50%, #161616 0 1.5px, #242424 1.5px 3px);
-  box-shadow: 0 12px 28px -12px rgba(0,0,0,.55);
-  translate: 0 0;
-  transition: translate 650ms cubic-bezier(.2,.8,.2,1);
-  animation: vinylSpin 2.6s linear infinite;
-  animation-play-state: paused;
-}
-.vinyl[data-playing="true"] { translate: 20% 0; animation-play-state: running; }
-/* Single-column layout: the cover fills the card, so the record only peeks into the card padding. */
-@media (max-width: 767px) { .vinyl[data-playing="true"] { translate: 11% 0; } }
-/* Dark theme: a faint rim so the black record does not vanish into the dark card. */
-.dark .vinyl { box-shadow: 0 0 0 1px rgba(255,255,255,.14), 0 12px 28px -12px rgba(0,0,0,.8); }
-@keyframes vinylSpin { to { rotate: 360deg; } }
-
-/* respect the OS "reduce motion" setting: no idle loops, no long transitions */
+/* Pengaturan "kurangi animasi" di OS: tidak ada animasi berulang dan semua perubahan langsung terjadi.
+   Transisi dimatikan sepenuhnya (bukan dibuat 0,01 ms): dengan transisi super singkat di semua
+   elemen, setiap scroll memicu ratusan event transisi yang membuat main thread sibuk. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    transition-delay: 0ms !important;
+    transition-property: none !important;
     scroll-behavior: auto !important;
   }
   .reveal { opacity: 1; transform: none; }
   .terminal-cursor { opacity: 1; }
   .reveal .tool-pop { opacity: 1; scale: 1; translate: 0 0; }
   .vinyl { animation: none; }
+  /* Bayangan "bernapas" ikon tools hanya ada selama animasinya berjalan. */
+  .tool-shadow { display: none; }
 }

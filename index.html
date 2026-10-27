@@ -20,9 +20,12 @@
     <meta property="og:image:alt" content="Hilmy Adhyandra Hamzah, Infrastructure and Systems" />
     <meta name="twitter:card" content="summary_large_image" />
 
+    <!-- Foto profil (elemen terbesar di layar pertama) diunduh bersamaan dengan JavaScript,
+         tidak menunggu React selesai render. -->
+    <link rel="preload" as="image" href="/placeholder/me.webp" fetchpriority="high" />
     <script src="/theme-init.js"></script>
   </head>
-  <body>
+  <body class="antialiased">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

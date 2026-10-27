@@ -1,13 +1,12 @@
-import path from "path"
+import path from "node:path"
 import tailwindcss from "@tailwindcss/vite"
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react-swc'
+import react from "@vitejs/plugin-react-swc"
+import { defineConfig } from "vite"
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  // In development, /api/ goes to the deployed site so the terminal's network commands
-  // use the real backend (server/netapi.mjs). Change the target to test a local one.
+  // Saat development, /api/ diteruskan ke situs yang sudah online supaya perintah jaringan di
+  // terminal memakai backend asli (server/netapi.mjs). Ganti target untuk mencoba backend lokal.
   server: {
     proxy: {
       "/api": { target: "https://hilmyah.my.id", changeOrigin: true },

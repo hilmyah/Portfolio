@@ -5,37 +5,38 @@ export type Theme = "light" | "dark"
 const STORAGE_KEY = "theme"
 const listeners = new Set<() => void>()
 
+// Pilihan tersimpan menang; kalau belum pernah memilih, ikut tema OS.
+// public/theme-init.js melakukan hal yang sama sebelum halaman tampil, supaya tidak ada kedipan putih.
 function readInitialTheme(): Theme {
   if (typeof window === "undefined") return "light"
   try {
     const saved = window.localStorage.getItem(STORAGE_KEY)
     if (saved === "light" || saved === "dark") return saved
   } catch {
-    // localStorage unavailable; fall back to the OS preference
+    // localStorage diblokir (mode privat tertentu)
   }
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
 }
 
-function applyTheme(theme: Theme): void {
-  if (typeof document === "undefined") return
-  document.documentElement.classList.toggle("dark", theme === "dark")
+function applyTheme(theme: Theme) {
+  if (typeof document !== "undefined") document.documentElement.classList.toggle("dark", theme === "dark")
 }
 
-let current: Theme = readInitialTheme()
+let current = readInitialTheme()
 applyTheme(current)
 
 export function getTheme(): Theme {
   return current
 }
 
-export function setTheme(theme: Theme): void {
+export function setTheme(theme: Theme) {
   if (theme === current) return
   current = theme
   applyTheme(theme)
   try {
     window.localStorage.setItem(STORAGE_KEY, theme)
   } catch {
-    // localStorage unavailable; the choice lasts for this page load only
+    // tidak bisa disimpan: pilihan hanya berlaku sampai halaman ditutup
   }
   listeners.forEach((listener) => listener())
 }
@@ -46,7 +47,7 @@ export function toggleTheme(): Theme {
   return next
 }
 
-function subscribe(listener: () => void): () => void {
+function subscribe(listener: () => void) {
   listeners.add(listener)
   return () => {
     listeners.delete(listener)

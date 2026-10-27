@@ -1,3 +1,6 @@
+// Semua isi portfolio ada di file ini: profil, lagu, tools, project, sosial media dan daftar
+// perintah terminal. Komponen dan terminal hanya membaca dari sini.
+
 export type Profile = {
   name: string
   role: string
@@ -11,7 +14,7 @@ export type Song = {
   artist: string
   src: string
   albumArt: string
-  length?: string
+  /** Kosong: music player menampilkan kutipan bawaan. */
   lyric?: string
 }
 
@@ -66,13 +69,12 @@ export const ABOUT = {
   motto: "embrace open-source, operate cost-effectively, maintain efficiently.",
 }
 
-// Placeholder metadata: replace title, artist, albumArt and lyric with the real values.
 export const SONGS: Song[] = [
   {
     id: 1,
     title: "Growtopia Theme",
     artist: "Cory Mollenhour",
-    src: "/audio/theme.mpeg",
+    src: "/audio/theme.mp3",
     albumArt: "/img/album1.svg",
     lyric: "",
   },
@@ -162,9 +164,7 @@ export const PROJECTS: Project[] = [
   },
 ]
 
-export const PROJECT_TAGS = Array.from(
-  new Set(PROJECTS.flatMap((project) => project.tags))
-).sort()
+export const PROJECT_TAGS = [...new Set(PROJECTS.flatMap((project) => project.tags))].sort()
 
 export const SOCIALS: Social = {
   email: "andrahilmy558@gmail.com",
@@ -174,7 +174,7 @@ export const SOCIALS: Social = {
   facebook: "https://www.facebook.com/andra.794636",
 }
 
-// Host used in the terminal's example network commands (dig, whois, ping).
+// Domain yang dipakai di contoh perintah jaringan terminal (dig, whois, ping).
 export const SITE_DOMAIN = "hilmyah.my.id"
 
 export const TERMINAL_COMMANDS: TerminalCommand[] = [

@@ -4,10 +4,11 @@ import { cn } from "@/lib/utils"
 type RevealProps = {
   children: React.ReactNode
   className?: string
-  /** Delay in milliseconds, used to stagger siblings. */
+  /** Jeda dalam milidetik, untuk membuat elemen bersebelahan muncul bergantian. */
   delay?: number
 }
 
+/** Isi muncul pelan (lihat .reveal di index.css) saat pertama kali masuk layar. */
 export function Reveal({ children, className, delay = 0 }: RevealProps) {
   const ref = React.useRef<HTMLDivElement | null>(null)
   const [shown, setShown] = React.useState(false)

@@ -1,5 +1,5 @@
-// A small read-only filesystem for the terminal, generated from src/data.ts.
-// Nothing here touches a real disk; it exists so ls, cd and cat behave like a shell.
+// Filesystem kecil yang hanya bisa dibaca, dibangun dari src/data.ts. Tidak menyentuh disk sama
+// sekali; gunanya supaya ls, cd, cat dan tree terasa seperti shell sungguhan.
 import { ABOUT, PROFILE, PROJECTS, SOCIALS, TOOLS } from "@/data"
 import type { Project } from "@/data"
 
@@ -13,6 +13,7 @@ export function projectSlug(project: Project): string {
   return project.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
 }
 
+/** Baris bernilai false/undefined dilewati, jadi field opsional bisa ditulis langsung. */
 const file = (lines: (string | false | undefined)[]): FileNode => ({
   kind: "file",
   content: lines.filter((l): l is string => typeof l === "string").join("\n") + "\n",
@@ -35,16 +36,17 @@ function projectFile(p: Project): FileNode {
 }
 
 function buildTree(): DirNode {
-  const contact: (string | undefined)[] = ["# Contact", ""]
-  if (SOCIALS.email) contact.push(`email:     ${SOCIALS.email}`)
-  if (SOCIALS.github) contact.push(`github:    ${SOCIALS.github}`)
-  if (SOCIALS.linkedin) contact.push(`linkedin:  ${SOCIALS.linkedin}`)
-  if (SOCIALS.instagram) contact.push(`instagram: ${SOCIALS.instagram}`)
-  if (SOCIALS.facebook) contact.push(`facebook:  ${SOCIALS.facebook}`)
-
   const home = dir({
-    "about.md": file([`# ${PROFILE.name}`, "", `${PROFILE.role}`, PROFILE.tagline, "", ABOUT.bio, "", `> ${ABOUT.motto}`]),
-    "contact.md": file(contact),
+    "about.md": file([`# ${PROFILE.name}`, "", PROFILE.role, PROFILE.tagline, "", ABOUT.bio, "", `> ${ABOUT.motto}`]),
+    "contact.md": file([
+      "# Contact",
+      "",
+      SOCIALS.email ? `email:     ${SOCIALS.email}` : undefined,
+      SOCIALS.github ? `github:    ${SOCIALS.github}` : undefined,
+      SOCIALS.linkedin ? `linkedin:  ${SOCIALS.linkedin}` : undefined,
+      SOCIALS.instagram ? `instagram: ${SOCIALS.instagram}` : undefined,
+      SOCIALS.facebook ? `facebook:  ${SOCIALS.facebook}` : undefined,
+    ]),
     "tools.txt": file(TOOLS.map((t) => t.name)),
     projects: dir(Object.fromEntries(PROJECTS.map((p) => [`${projectSlug(p)}.md`, projectFile(p)]))),
   })
@@ -53,14 +55,13 @@ function buildTree(): DirNode {
 
 const ROOT = buildTree()
 
-/** Resolves a path (absolute, ~-relative or relative to cwd) to a normalised absolute path. */
+/** Mengubah path (absolut, diawali ~, atau relatif terhadap cwd) menjadi path absolut yang sudah dinormalkan. */
 export function resolvePath(cwd: string, input: string): string {
   let raw = input.trim()
   if (raw === "" || raw === "~") return HOME
   if (raw.startsWith("~/")) raw = HOME + raw.slice(1)
-  const parts = (raw.startsWith("/") ? raw : `${cwd}/${raw}`).split("/")
   const stack: string[] = []
-  for (const part of parts) {
+  for (const part of (raw.startsWith("/") ? raw : `${cwd}/${raw}`).split("/")) {
     if (!part || part === ".") continue
     if (part === "..") stack.pop()
     else stack.push(part)
@@ -79,13 +80,14 @@ export function lookupPath(path: string): VfsNode | undefined {
   return node
 }
 
-/** "/home/visitor/projects" -> "~/projects" for the prompt. */
+/** "/home/visitor/projects" menjadi "~/projects" untuk prompt. */
 export function displayPath(path: string): string {
   if (path === HOME) return "~"
   if (path.startsWith(`${HOME}/`)) return `~${path.slice(HOME.length)}`
   return path
 }
 
+/** Isi folder: subfolder dulu, lalu file, masing-masing urut abjad. */
 export function listDir(node: DirNode): { name: string; node: VfsNode }[] {
   return Object.keys(node.children)
     .sort((a, b) => {
@@ -96,7 +98,7 @@ export function listDir(node: DirNode): { name: string; node: VfsNode }[] {
     .map((name) => ({ name, node: node.children[name] }))
 }
 
-/** Path completion: returns full candidate paths (directories end with "/") for a partial argument. */
+/** Kandidat completion untuk sebagian path; nama folder diakhiri "/". */
 export function completePath(cwd: string, partial: string, dirsOnly = false): string[] {
   const slash = partial.lastIndexOf("/")
   const base = slash >= 0 ? partial.slice(0, slash + 1) : ""
