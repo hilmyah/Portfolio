@@ -27,3 +27,9 @@ Checks before committing:
 npm run lint
 npm run build
 ```
+
+## Deploy
+
+`server/deploy.sh` builds each release into its own folder on the server and switches nginx to it in
+one step, then purges changed files from the Cloudflare cache. Setup and usage are in
+[server/DEPLOY.md](server/DEPLOY.md).

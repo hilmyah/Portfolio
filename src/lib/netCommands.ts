@@ -8,6 +8,8 @@
 //   dig    -> DNS over HTTPS (dns.google, cadangannya cloudflare-dns.com)
 //   whois  -> RDAP over HTTPS (rdap.org meneruskan ke registry yang berwenang)
 //   ping   -> HTTPS HEAD yang diukur waktunya (browser tidak bisa mengirim ICMP)
+//
+// myip selalu berjalan dari browser: membaca /cdn-cgi/trace yang dijawab Cloudflare sendiri.
 import type { CommandContext, TerminalLine, TerminalResult, Tone } from "@/lib/terminal"
 
 export const REMOTE_COMMANDS = ["ping", "dig", "whois", "nslookup", "host", "traceroute"] as const
@@ -470,6 +472,69 @@ async function pingInBrowser(args: string[], ctx: CommandContext): Promise<Termi
     return { lines: [line("^C", "muted"), ...summary()] }
   }
   return { lines: summary() }
+}
+
+// ---------------------------------------------------------------- myip (di browser)
+
+// Kode data center Cloudflare adalah kode bandara IATA. Yang biasa melayani pengunjung dari Asia
+// diberi nama kota, ditambah beberapa hub besar; sisanya tampil kodenya saja.
+const COLO_CITIES: Record<string, string> = {
+  CGK: "Jakarta", SUB: "Surabaya", DPS: "Denpasar", JOG: "Yogyakarta", KNO: "Medan", BTH: "Batam",
+  UPG: "Makassar", SIN: "Singapore", KUL: "Kuala Lumpur", JHB: "Johor Bahru", BKK: "Bangkok",
+  MNL: "Manila", SGN: "Ho Chi Minh City", HAN: "Hanoi", HKG: "Hong Kong", TPE: "Taipei",
+  NRT: "Tokyo", KIX: "Osaka", ICN: "Seoul", BOM: "Mumbai", DEL: "New Delhi", MAA: "Chennai",
+  SYD: "Sydney", MEL: "Melbourne", PER: "Perth", LAX: "Los Angeles", SJC: "San Jose",
+  FRA: "Frankfurt", AMS: "Amsterdam", LHR: "London",
+}
+
+function parseTrace(text: string): Record<string, string> {
+  const fields: Record<string, string> = {}
+  for (const row of text.split("\n")) {
+    const eq = row.indexOf("=")
+    if (eq > 0) fields[row.slice(0, eq)] = row.slice(eq + 1).trim()
+  }
+  return fields
+}
+
+function countryName(code: string): string {
+  if (code === "T1") return "Tor network"
+  if (!/^[A-Z]{2}$/.test(code) || code === "XX") return "unknown"
+  try {
+    const name = new Intl.DisplayNames(["en"], { type: "region" }).of(code)
+    return name && name !== code ? `${name} (${code})` : code
+  } catch {
+    return code
+  }
+}
+
+/**
+ * Alamat publik pengunjung menurut Cloudflare. /cdn-cgi/trace dijawab langsung oleh data center
+ * Cloudflare yang melayani pengunjung, jadi tidak sampai ke server situs dan tidak butuh netapi.
+ */
+export async function myip(args: string[], ctx: CommandContext): Promise<TerminalResult> {
+  if (args.length) return { lines: [line("usage: myip", "error")] }
+  let trace: Record<string, string> = {}
+  try {
+    const response = await timedFetch("/cdn-cgi/trace", { cache: "no-store" }, ctx.signal, 8000)
+    if (response.ok && response.headers.get("content-type")?.startsWith("text/plain")) trace = parseTrace(await response.text())
+  } catch (error) {
+    if (isAbort(error)) return interrupted()
+  }
+  if (!trace.ip || !trace.colo) {
+    return { lines: [line("myip: Cloudflare's /cdn-cgi/trace is not available here (it only exists on the live site)", "error")] }
+  }
+  const colo = trace.colo.toUpperCase()
+  const city = COLO_CITIES[colo]
+  const protocol = [trace.http?.toUpperCase(), trace.tls].filter(Boolean).join(", ")
+  const out: TerminalLine[] = [
+    line(`${pad("ip", 14)}${trace.ip}`, "accent"),
+    line(`${pad("country", 14)}${countryName(trace.loc ?? "")}`),
+    line(`${pad("cloudflare", 14)}${colo}${city ? ` (${city})` : ""}`),
+  ]
+  if (protocol) out.push(line(`${pad("protocol", 14)}${protocol}`))
+  if (trace.kex) out.push(line(`${pad("key exchange", 14)}${trace.kex}${/MLKEM/i.test(trace.kex) ? " (post-quantum hybrid)" : ""}`))
+  out.push(blank(), line("Answered by Cloudflare's edge (/cdn-cgi/trace). The request never reaches the server behind this site.", "muted"))
+  return { lines: out }
 }
 
 // ---------------------------------------------------------------- titik masuk

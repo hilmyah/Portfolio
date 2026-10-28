@@ -1,6 +1,6 @@
 import * as React from "react"
-import { SITE_DOMAIN } from "@/data"
-import { PROMPT_HOST, PROMPT_USER, WELCOME_LINES, complete, getPromptPath, runCommand } from "@/lib/terminal"
+import { PROMPT_HOST, PROMPT_USER, SITE_DOMAIN } from "@/data"
+import { WELCOME_LINES, complete, getPromptPath, runCommand } from "@/lib/terminal"
 import type { TerminalLine, Tone } from "@/lib/terminal"
 import { prefersReducedMotion } from "@/lib/theme"
 import { cn } from "@/lib/utils"

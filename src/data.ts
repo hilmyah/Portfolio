@@ -179,6 +179,10 @@ export const SOCIALS: Social = {
 // Domain yang dipakai di contoh perintah jaringan terminal (dig, whois, ping).
 export const SITE_DOMAIN = "hilmyah.my.id"
 
+// Prompt terminal (visitor@hilmyah:~$), juga dipakai pesan 404 di halaman utama.
+export const PROMPT_USER = "visitor"
+export const PROMPT_HOST = "hilmyah"
+
 export const TERMINAL_COMMANDS: TerminalCommand[] = [
   { command: "about", group: "portfolio", description: "About Hilmy" },
   { command: "fetch", group: "portfolio", description: "Show portfolio information" },
@@ -200,6 +204,7 @@ export const TERMINAL_COMMANDS: TerminalCommand[] = [
   { command: "host", group: "network", description: "Query DNS records", usage: "host [-t TYPE] <name|ip> [server]", examples: ["host -t NS hilmyah.my.id"] },
   { command: "whois", group: "network", description: "Look up domain or IP registration", usage: "whois [-h server] <domain|ip>", examples: ['whois hilmyah.my.id | grep -i "name server"'] },
   { command: "traceroute", group: "network", description: "Trace the route to a host", usage: "traceroute [-m hops] [-4|-6] <host>", examples: ["traceroute -m 15 1.1.1.1"] },
+  { command: "myip", group: "network", description: "Show your public IP, country and the Cloudflare location serving you" },
 
   { command: "help", group: "shell", description: "List commands, or explain one", usage: "help [command]", examples: ["help dig"] },
   { command: "theme", group: "shell", description: "Switch light or dark theme", usage: "theme [dark|light]" },

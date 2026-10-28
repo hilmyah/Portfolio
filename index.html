@@ -7,7 +7,12 @@
     <meta name="description" content="Hilmy Adhyandra Hamzah - Infrastructure and Systems. Linux, self-hosting, networking, automation." />
     <meta name="theme-color" content="#111111" />
     <link rel="canonical" href="https://hilmyah.my.id/" />
-    <link rel="icon" type="image/png" href="/icons/logo-temp.svg" />
+    <!-- Browser modern memakai SVG. Safari sebelum versi 26 belum mendukung favicon SVG, jadi
+         memakai favicon.ico; sizes="32x32" membuat Chrome tetap memilih SVG. apple-touch-icon untuk
+         ikon di layar utama iPhone dan iPad. -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/icons/logo-temp.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.svg" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Hilmy Adhyandra Hamzah" />

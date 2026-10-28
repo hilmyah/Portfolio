@@ -3,6 +3,7 @@ import { About } from "@/components/About"
 import { Footer } from "@/components/Footer"
 import { Hero } from "@/components/Hero"
 import { Navbar } from "@/components/Navbar"
+import { NotFound } from "@/components/NotFound"
 import { Projects } from "@/components/Projects"
 import { ScrollTop } from "@/components/ScrollTop"
 import { Terminal } from "@/components/Terminal"
@@ -34,6 +35,7 @@ export default function App() {
     <div className="font-sans overflow-x-clip">
       <Navbar />
       <main>
+        <NotFound />
         <Hero />
         <About />
         <Projects />

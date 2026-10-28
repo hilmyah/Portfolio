@@ -1,8 +1,8 @@
 // Mesin terminal: daftar perintah, pipe ke filter, dan tab completion. Tampilan ada di
 // components/TerminalWindow.tsx; file ini tidak menyentuh DOM kecuali window.open dan matchMedia.
-import { ABOUT, PROFILE, PROJECTS, PROJECT_TAGS, SITE_DOMAIN, SOCIALS, TERMINAL_COMMANDS, TOOLS } from "@/data"
+import { ABOUT, PROFILE, PROJECTS, PROJECT_TAGS, PROMPT_HOST, PROMPT_USER, SITE_DOMAIN, SOCIALS, TERMINAL_COMMANDS, TOOLS } from "@/data"
 import type { CommandGroup, Project } from "@/data"
-import { REMOTE_COMMANDS, networkCommand } from "@/lib/netCommands"
+import { REMOTE_COMMANDS, myip, networkCommand } from "@/lib/netCommands"
 import { applyFilter, isFilter, parsePipeline } from "@/lib/pipeline"
 // bait: jawaban "nice try" untuk input bergaya serangan (lihat src/lib/baits.ts)
 import { baitForCommand, baitForNetworkTarget, baitForOperator, baitForPath, baitForPayload } from "@/lib/baits"
@@ -31,9 +31,6 @@ export type CommandContext = {
 }
 
 type Handler = (args: string[], ctx: CommandContext) => TerminalResult | Promise<TerminalResult>
-
-export const PROMPT_USER = "visitor"
-export const PROMPT_HOST = "hilmyah"
 
 export const WELCOME_LINES: TerminalLine[] = [
   { text: `${PROFILE.name} - ${PROFILE.role}`, tone: "accent" },
@@ -96,7 +93,7 @@ const handlers: Record<string, Handler> = {
       }
       const out: TerminalLine[] = [line(`${entry.command} - ${entry.description}`, "accent"), blank(), line(`usage: ${entry.usage ?? entry.command}`)]
       if (entry.examples?.length) out.push(blank(), line("examples:", "muted"), ...entry.examples.map((e) => line(`  ${e}`)))
-      if (entry.group === "network") {
+      if (isRemote(entry.command)) {
         out.push(blank(), line("Runs on the server that hosts this site. Private and LAN addresses are refused.", "muted"))
       }
       return { lines: out }
@@ -279,6 +276,7 @@ const handlers: Record<string, Handler> = {
   },
 
   ...Object.fromEntries(REMOTE_COMMANDS.map((cmd) => [cmd, networkCommand(cmd)])),
+  myip,
 
   clear: () => ({ lines: [], clear: true }),
 
