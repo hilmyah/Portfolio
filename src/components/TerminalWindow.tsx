@@ -247,8 +247,8 @@ export function TerminalWindow() {
   return (
     // min-height menyediakan ukuran saat terbuka (body 26rem + dua bar 40px + border 2px), jadi isi di bawahnya tidak bergeser
     <div ref={windowRef} className="terminal-window relative min-h-[calc(26rem+82px)]" data-open={phase !== "closed"}>
-      <span aria-hidden className="pointer-events-none absolute -left-2 -top-2 z-10 h-5 w-14 -rotate-6 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat" />
-      <span aria-hidden className="pointer-events-none absolute -right-2 -top-2 z-10 h-5 w-14 rotate-6 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat" />
+      <span aria-hidden className="pointer-events-none absolute -left-2 -top-2 z-10 h-5 w-14 -rotate-6 bg-[url('@/assets/img/tape.svg')] bg-contain bg-no-repeat" />
+      <span aria-hidden className="pointer-events-none absolute -right-2 -top-2 z-10 h-5 w-14 rotate-6 bg-[url('@/assets/img/tape.svg')] bg-contain bg-no-repeat" />
 
       <div className="overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950 card-shadow">
         <div className="flex h-10 items-center gap-2 border-b border-neutral-800 bg-neutral-900 px-4">

@@ -222,10 +222,10 @@ export function Hero() {
               onLoad={(e) => heroPhotoLoaded(e.currentTarget)}
               onError={(e) => heroPhotoLoaded(e.currentTarget)}
             />
-            <div className="absolute inset-0 bg-[url('/placeholder/paper-texture.svg')] opacity-20 mix-blend-overlay" />
+            <div className="absolute inset-0 bg-[url('@/assets/img/paper-texture.svg')] opacity-20 mix-blend-overlay" />
             <div className="absolute left-2 top-2 rotate-6 bg-yellow-200 px-3 py-1 text-sm shadow border border-yellow-300 text-black">hello!</div>
-            <div className="pointer-events-none absolute -right-4 top-6 h-10 w-10 rotate-6 bg-[url('/img/clip.svg')] bg-contain bg-no-repeat opacity-80" />
-            <span aria-hidden className="absolute -left-3 -bottom-3 h-10 w-24 rotate-[-4deg] bg-[url('/img/washi.svg')] bg-contain bg-no-repeat opacity-80" />
+            <div className="pointer-events-none absolute -right-4 top-6 h-10 w-10 rotate-6 bg-[url('@/assets/img/clip.svg')] bg-contain bg-no-repeat opacity-80" />
+            <span aria-hidden className="absolute -left-3 -bottom-3 h-10 w-24 rotate-[-4deg] bg-[url('@/assets/img/washi.svg')] bg-contain bg-no-repeat opacity-80" />
           </div>
 
           {/* Stiker berada di atas foto, tapi diletakkan di tepi kartu supaya wajah tidak tertutup. */}

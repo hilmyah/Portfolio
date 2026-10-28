@@ -41,8 +41,8 @@ export function ScrollTop() {
       aria-label="Back to top"
     >
       <div className="relative -rotate-2 rounded-md border border-yellow-300 bg-yellow-100 px-3 py-2 text-sm font-medium text-black shadow transition group-hover:-translate-y-1 group-hover:rotate-0 group-hover:shadow-lg">
-        <span className="absolute -right-2 -top-2 h-3 w-8 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat" />
-        <span className="absolute -left-2 -bottom-2 h-3 w-8 rotate-6 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat" />
+        <span className="absolute -right-2 -top-2 h-3 w-8 bg-[url('@/assets/img/tape.svg')] bg-contain bg-no-repeat" />
+        <span className="absolute -left-2 -bottom-2 h-3 w-8 rotate-6 bg-[url('@/assets/img/tape.svg')] bg-contain bg-no-repeat" />
         <span
           className="pointer-events-none absolute -left-4 -top-4 h-9 w-9 rounded-full opacity-70"
           style={{ background: `conic-gradient(var(--ring) ${progress * 3.6}deg, transparent 0)` }}

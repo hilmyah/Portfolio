@@ -8,6 +8,7 @@ Live at <https://hilmyah.my.id>, self-hosted on a home server behind a Cloudflar
 ## Stack
 
 - Preact (components are written against the React API and bundled through `preact/compat`), TypeScript, Vite, Tailwind CSS
+- The page is prerendered into `index.html` at build time (`src/prerender.tsx`) and hydrated in the browser
 - Lucide icons; Inter, JetBrains Mono and Patrick Hand via Fontsource
 - `server/netapi.mjs`: optional Node backend that runs the terminal's network tools (see [server/README.md](server/README.md))
 

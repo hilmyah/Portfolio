@@ -1,10 +1,27 @@
 // Semua isi portfolio ada di file ini: profil, lagu, tools, project, sosial media dan daftar
 // perintah terminal. Komponen dan terminal hanya membaca dari sini.
-// Ringkasan profil juga ditulis manual di index.html (data terstruktur untuk mesin pencari) dan
-// public/llms.txt (untuk AI); samakan keduanya kalau profil atau project berubah.
+//
+// Gambar ada di src/assets/ dan di-import di bawah; saat build namanya diberi hash, jadi browser
+// boleh menyimpannya setahun. Ganti gambar cukup dengan menimpa filenya. Ikon tools ada di
+// src/assets/tools/ dan di TOOLS cukup ditulis nama filenya.
+//
+// Domain dan sosial media ada di src/site.ts (juga dibaca saat build). Data terstruktur untuk mesin
+// pencari dibuat otomatis dari file ini saat build (src/prerender.tsx). Ringkasan untuk AI di
+// public/llms.txt masih ditulis manual: samakan kalau profil atau project berubah.
+import albumArt from "@/assets/img/album1.svg"
+import proj1 from "@/assets/img/proj1.svg"
+import proj2 from "@/assets/img/proj2.svg"
+import proj3 from "@/assets/img/proj3.svg"
+import proj4 from "@/assets/img/proj4.svg"
+import photo from "@/assets/me.webp"
+
+export { SITE_DOMAIN, SITE_URL, SOCIALS } from "@/site"
+export type { Social } from "@/site"
 
 export type Profile = {
   name: string
+  /** Nama pengguna yang dipakai di banyak akun (GitHub, LinkedIn). */
+  handle: string
   role: string
   tagline: string
   photo: { src: string; width: number; height: number; alt: string }
@@ -20,6 +37,7 @@ export type Song = {
   lyric?: string
 }
 
+/** icon: nama file di src/assets/tools/ tanpa .svg. */
 export type Tool = { name: string; icon: string }
 
 export type Project = {
@@ -46,20 +64,13 @@ export type TerminalCommand = {
   examples?: string[]
 }
 
-export type Social = {
-  email?: string
-  github?: string
-  linkedin?: string
-  instagram?: string
-  facebook?: string
-}
-
 export const PROFILE: Profile = {
   name: "Hilmy Adhyandra Hamzah",
+  handle: "hilmyah",
   role: "Infrastructure & Systems",
   tagline: "Linux • Self-hosting • Networking • Automation",
   photo: {
-    src: "/placeholder/me.webp",
+    src: photo,
     width: 420,
     height: 540,
     alt: "Hilmy Adhyandra Hamzah",
@@ -77,40 +88,40 @@ export const SONGS: Song[] = [
     title: "Growtopia Theme",
     artist: "Cory Mollenhour",
     src: "/audio/theme.mp3",
-    albumArt: "/img/album1.svg",
+    albumArt,
     lyric: "",
   },
 ]
 
 export const TOOLS: Tool[] = [
-  { name: "Linux", icon: "/icons/linux.svg" },
-  { name: "Bash", icon: "/icons/bash.svg" },
-  { name: "Debian", icon: "/icons/debian.svg" },
-  { name: "Ubuntu", icon: "/icons/ubuntu.svg" },
-  { name: "Kali Linux", icon: "/icons/kalilinux.svg" },
-  { name: "Fedora", icon: "/icons/fedora.svg" },
-  { name: "Windows", icon: "/icons/windows.svg" },
-  { name: "VS Code", icon: "/icons/vscode.svg" },
-  { name: "Git", icon: "/icons/git.svg" },
-  { name: "Github", icon: "/icons/github.svg" },
-  { name: "Docker", icon: "/icons/docker.svg" },
-  { name: "MySQL", icon: "/icons/mysql.svg" },
-  { name: "MariaDB", icon: "/icons/mariadb.svg" },
-  { name: "MongoDB", icon: "/icons/mongo.svg" },
-  { name: "Apache", icon: "/icons/apache.svg" },
-  { name: "Nginx", icon: "/icons/nginx.svg" },
-  { name: "KDE", icon: "/icons/kde.svg" },
-  { name: "VirtualBox", icon: "/icons/virtualbox.svg" },
-  { name: "VMware", icon: "/icons/vmware.svg" },
-  { name: "Mikrotik", icon: "/icons/mikrotik.svg" },
-  { name: "Cloudflare", icon: "/icons/cloudflare.svg" },
+  { name: "Linux", icon: "linux" },
+  { name: "Bash", icon: "bash" },
+  { name: "Debian", icon: "debian" },
+  { name: "Ubuntu", icon: "ubuntu" },
+  { name: "Kali Linux", icon: "kalilinux" },
+  { name: "Fedora", icon: "fedora" },
+  { name: "Windows", icon: "windows" },
+  { name: "VS Code", icon: "vscode" },
+  { name: "Git", icon: "git" },
+  { name: "Github", icon: "github" },
+  { name: "Docker", icon: "docker" },
+  { name: "MySQL", icon: "mysql" },
+  { name: "MariaDB", icon: "mariadb" },
+  { name: "MongoDB", icon: "mongo" },
+  { name: "Apache", icon: "apache" },
+  { name: "Nginx", icon: "nginx" },
+  { name: "KDE", icon: "kde" },
+  { name: "VirtualBox", icon: "virtualbox" },
+  { name: "VMware", icon: "vmware" },
+  { name: "Mikrotik", icon: "mikrotik" },
+  { name: "Cloudflare", icon: "cloudflare" },
 ]
 
 export const PROJECTS: Project[] = [
   {
     id: "1",
     folder: "Infrastructure",
-    thumbnail: "/img/proj1.svg",
+    thumbnail: proj1,
     name: "Bedrock Server",
     description:
       "Minecraft Bedrock server setup for Debian and Ubuntu, exposed through a Playit.gg tunnel so it needs no static IP or port forwarding. Ships a one-command installer, a management CLI for start, stop, backup and restore, automatic binary updates, and a systemd service.",
@@ -123,7 +134,7 @@ export const PROJECTS: Project[] = [
   {
     id: "2",
     folder: "Infrastructure",
-    thumbnail: "/img/proj2.svg",
+    thumbnail: proj2,
     name: "Jarchive Infrastructure",
     description:
       "Docker Compose setup that runs the Jarchive platform on a single host: a React and Vite frontend served by Nginx, a Node.js and Express backend, and MongoDB.",
@@ -134,7 +145,7 @@ export const PROJECTS: Project[] = [
   {
     id: "3",
     folder: "Security",
-    thumbnail: "/img/proj3.svg",
+    thumbnail: proj3,
     name: "Sijacrypt",
     description:
       "File encryption tool (MFCIPHER) that compresses and encrypts any file type with Ternary Huffman Coding and a ternary stream cipher, using an output alphabet of three characters. Implemented in C, Go, Python and Rust with interoperable output, plus a CustomTkinter GUI.",
@@ -145,7 +156,7 @@ export const PROJECTS: Project[] = [
   {
     id: "4",
     folder: "IoT",
-    thumbnail: "/img/proj4.svg",
+    thumbnail: proj4,
     name: "Growmate",
     description:
       "Smart irrigation system on a WEMOS D1 Mini (ESP8266) that waters plants based on soil moisture readings, with an LCD display, a web dashboard, Blynk integration and OTA firmware updates.",
@@ -156,7 +167,7 @@ export const PROJECTS: Project[] = [
   {
     id: "5",
     folder: "IoT",
-    thumbnail: "/img/proj1.svg",
+    thumbnail: proj1,
     name: "Growbot",
     description:
       "WhatsApp and Telegram gateway for Growmate, built with Node.js and Express. Lets users monitor soil moisture and control watering through chat commands.",
@@ -167,17 +178,6 @@ export const PROJECTS: Project[] = [
 ]
 
 export const PROJECT_TAGS = [...new Set(PROJECTS.flatMap((project) => project.tags))].sort()
-
-export const SOCIALS: Social = {
-  email: "andrahilmy558@gmail.com",
-  github: "https://github.com/hilmyah",
-  linkedin: "https://www.linkedin.com/in/hilmyah/",
-  instagram: "https://www.instagram.com/hlmydr/",
-  facebook: "https://www.facebook.com/andra.794636",
-}
-
-// Domain yang dipakai di contoh perintah jaringan terminal (dig, whois, ping).
-export const SITE_DOMAIN = "hilmyah.my.id"
 
 // Prompt terminal (visitor@hilmyah:~$), juga dipakai pesan 404 di halaman utama.
 export const PROMPT_USER = "visitor"

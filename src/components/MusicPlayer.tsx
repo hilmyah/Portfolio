@@ -190,8 +190,8 @@ function Player({ minimal = false }: PlayerProps) {
               <span aria-hidden className="vinyl" data-playing={state.playing} />
               <div className={`relative z-10 aspect-square overflow-hidden rounded-md border border-border bg-muted ${state.playing ? "animate-wobble-soft shadow-lg" : ""}`}>
                 <img src={song.albumArt} alt="current album art" className="h-full w-full object-cover" />
-                <span aria-hidden className="pointer-events-none absolute -left-1 -top-1 h-4 w-10 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat" />
-                <span aria-hidden className="pointer-events-none absolute -right-1 -top-1 h-4 w-10 rotate-6 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat" />
+                <span aria-hidden className="pointer-events-none absolute -left-1 -top-1 h-4 w-10 bg-[url('@/assets/img/tape.svg')] bg-contain bg-no-repeat" />
+                <span aria-hidden className="pointer-events-none absolute -right-1 -top-1 h-4 w-10 rotate-6 bg-[url('@/assets/img/tape.svg')] bg-contain bg-no-repeat" />
                 <span aria-hidden className="absolute right-3 top-3 h-16 w-0.5 bg-black/50 origin-top rotate-12 rounded-full" />
               </div>
             </div>

@@ -25,39 +25,16 @@
     <meta property="og:image:alt" content="Hilmy Adhyandra Hamzah, Infrastructure and Systems" />
     <meta name="twitter:card" content="summary_large_image" />
 
-    <!-- Data terstruktur untuk mesin pencari: siapa pemilik situs ini dan akun resminya (sameAs).
-         Format: https://developers.google.com/search/docs/appearance/structured-data/profile-page
-         Ini data, bukan JavaScript, jadi tidak dijalankan browser dan tidak terkena
-         Content-Security-Policy. Samakan isinya dengan src/data.ts kalau profil berubah. -->
-    <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "ProfilePage",
-        "url": "https://hilmyah.my.id/",
-        "mainEntity": {
-          "@type": "Person",
-          "name": "Hilmy Adhyandra Hamzah",
-          "alternateName": "hilmyah",
-          "description": "Infrastructure & Systems. Linux, self-hosting, networking, automation.",
-          "image": "https://hilmyah.my.id/placeholder/me.webp",
-          "url": "https://hilmyah.my.id/",
-          "sameAs": [
-            "https://github.com/hilmyah",
-            "https://www.linkedin.com/in/hilmyah/",
-            "https://www.instagram.com/hlmydr/",
-            "https://www.facebook.com/andra.794636"
-          ]
-        }
-      }
-    </script>
-
-    <!-- Foto profil (elemen terbesar di layar pertama) diunduh bersamaan dengan JavaScript,
-         tidak menunggu halaman selesai dirender. -->
-    <link rel="preload" as="image" href="/placeholder/me.webp" fetchpriority="high" />
+    <!-- Saat build, src/prerender.tsx mengisi #root dengan halaman jadi, dan menambahkan di akhir
+         <head> ini preload foto profil serta data terstruktur untuk mesin pencari (JSON-LD), dua-duanya
+         dibuat dari src/data.ts. Atribut prerender menandai script yang mengekspor fungsi prerender. -->
     <script src="/theme-init.js"></script>
+    <!-- Tanpa JavaScript, bagian yang biasanya muncul saat di-scroll (.reveal di src/index.css) tetap
+         ditampilkan. "html" menaikkan prioritas aturan ini di atas aturan di file CSS. -->
+    <noscript><style>html .reveal { opacity: 1; transform: none; }</style></noscript>
   </head>
   <body class="antialiased">
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script prerender type="module" src="/src/main.tsx"></script>
   </body>
 </html>

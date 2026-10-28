@@ -1,8 +1,19 @@
 import * as React from "react"
 import { createPortal } from "react-dom"
 import { Menu, Moon, Sun } from "lucide-react"
+import bolt from "@/assets/img/bolt.svg"
+import cassette from "@/assets/img/cassette.svg"
+import cat from "@/assets/img/cat.svg"
+import pick from "@/assets/img/pick.svg"
+import starburst from "@/assets/img/starburst.svg"
+import stickerHeart from "@/assets/img/sticker-heart.svg"
+import stickerStar from "@/assets/img/sticker-star.svg"
+import tearPaper from "@/assets/img/tear-paper.svg"
+import ticket from "@/assets/img/ticket.svg"
+import washi2 from "@/assets/img/washi-2.svg"
+import washi from "@/assets/img/washi.svg"
 import { Button } from "@/components/ui/button"
-import { prefersReducedMotion, toggleTheme, useTheme } from "@/lib/theme"
+import { prefersReducedMotion, toggleTheme } from "@/lib/theme"
 
 const SECTIONS = [
   { id: "about", label: "About" },
@@ -12,20 +23,8 @@ const SECTIONS = [
 ]
 
 // Stiker kecil di strip bawah navbar (desktop). Indeks ganjil bergoyang naik-turun, indeks genap
-// bergeser ke samping.
-const STRIP = [
-  "/img/washi.svg",
-  "/img/sticker-star.svg",
-  "/img/cassette.svg",
-  "/img/sticker-heart.svg",
-  "/img/cat.svg",
-  "/img/pick.svg",
-  "/img/ticket.svg",
-  "/img/washi-2.svg",
-  "/img/tear-paper.svg",
-  "/img/starburst.svg",
-  "/img/bolt.svg",
-]
+// bergeser ke samping. Gambarnya kecil, jadi ikut masuk ke file JS saat build (data URI).
+const STRIP = [washi, stickerStar, cassette, stickerHeart, cat, pick, ticket, washi2, tearPaper, starburst, bolt]
 
 const LINK_CLASS = "nav-link px-3 py-2 rounded-md hover:bg-accent/60"
 
@@ -124,7 +123,6 @@ function scrollToSection(id: string) {
 
 export function Navbar() {
   const [menuOpen, setMenuOpen] = React.useState(false)
-  const isDark = useTheme() === "dark"
   const active = useActiveSection()
   const { flip, overlay } = usePageFlipTheme()
 
@@ -163,7 +161,11 @@ export function Navbar() {
         <div className="hidden md:flex items-center gap-1">
           {SECTIONS.map(({ id, label }) => sectionLink(id, label))}
           <Button variant="ghost" size="icon" aria-label="Toggle theme" onClick={flip}>
-            {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            {/* Ikon dan teks tema dipilih lewat CSS (kelas .dark dari theme-init.js), bukan state:
+                HTML hasil prerender belum tahu tema pengunjung, dan isinya harus sama dengan render
+                pertama di browser. */}
+            <Sun className="hidden h-5 w-5 dark:block" />
+            <Moon className="h-5 w-5 dark:hidden" />
           </Button>
         </div>
         <div className="md:hidden">
@@ -178,10 +180,10 @@ export function Navbar() {
           <div className="mx-auto max-w-6xl px-4 py-2 grid grid-flow-col auto-cols-[minmax(72px,1fr)] gap-3">
             {STRIP.map((src, i) => (
               <span
-                key={src}
+                key={i}
                 aria-hidden
                 className={`h-7 w-full bg-center bg-no-repeat bg-contain ${i % 2 ? "animate-bob" : "animate-drift"}`}
-                style={{ "--r": `${i % 2 ? 1 : -1}deg`, backgroundImage: `url('${src}')` } as React.CSSProperties}
+                style={{ "--r": `${i % 2 ? 1 : -1}deg`, backgroundImage: `url("${src}")` } as React.CSSProperties}
               />
             ))}
           </div>
@@ -193,7 +195,11 @@ export function Navbar() {
           <div className="mx-auto max-w-6xl px-4 py-3 flex flex-col gap-2">
             {SECTIONS.map(({ id, label }) => sectionLink(id, label, true))}
             <Button variant="outline" onClick={flip} className="mt-2">
-              {isDark ? "Light" : "Dark"} Mode
+              {/* satu span pembungkus: Button adalah flex dengan gap, jadi tiap anak langsung diberi jarak */}
+              <span>
+                <span className="dark:hidden">Dark</span>
+                <span className="hidden dark:inline">Light</span> Mode
+              </span>
             </Button>
           </div>
         </div>

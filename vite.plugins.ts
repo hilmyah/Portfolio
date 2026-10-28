@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { brotliCompressSync, constants } from "node:zlib"
 import type { Plugin } from "vite"
-import { SITE_DOMAIN, SOCIALS } from "./src/data"
+import { SITE_DOMAIN, SOCIALS } from "./src/site"
 
 const COMPRESSIBLE = /\.(?:html|js|css|svg|json|txt|xml)$/
 const MIN_BYTES = 256 // sama dengan gzip_min_length di nginx: file sekecil ini tidak perlu dikompres

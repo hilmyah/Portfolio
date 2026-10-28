@@ -142,23 +142,29 @@ EOF
 }
 
 deploy() {
-  local current previous_commit commit id new lock_hash stamp
+  local current previous_commit commit id new lock_hash stamp installed
   current=$(current_release)
   previous_commit=${current:+${current##*-}}
   cd -- "$REPO"
   commit=$(git rev-parse --short=12 HEAD)
 
-  # node_modules hanya dipasang ulang kalau package-lock.json berubah sejak npm ci terakhir.
+  # node_modules hanya dipasang ulang kalau package-lock.json berubah sejak npm ci terakhir yang
+  # berhasil. Penandanya baru ditulis setelah build berhasil: npm bisa keluar dengan kode 0 walau
+  # instalasinya gagal ("Exit handler never called!"), dan dengan cara ini deploy berikutnya
+  # mengulang npm ci, bukan terus gagal di build.
   stamp="$REPO/node_modules/.deploy-lock-sha256"
   lock_hash=$(sha256sum package-lock.json | cut -d' ' -f1)
+  installed=0
   if [[ ! -f "$stamp" || "$(<"$stamp")" != "$lock_hash" ]]; then
     log "npm ci"
+    rm -f -- "$stamp"
     npm ci --no-audit --no-fund
-    printf '%s\n' "$lock_hash" >"$stamp"
+    installed=1
   fi
 
   log "build $commit"
   npm run build
+  ((installed == 0)) || printf '%s\n' "$lock_hash" >"$stamp"
 
   id="$(date +%Y%m%d-%H%M%S)-$commit"
   new="$SITE/releases/$id"

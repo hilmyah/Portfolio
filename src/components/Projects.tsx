@@ -19,14 +19,14 @@ const LABEL_COLORS = [
   "bg-blue-100 border-blue-300",
 ]
 
-const TAPE = "pointer-events-none absolute h-4 w-10 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat"
+const TAPE = "pointer-events-none absolute h-4 w-10 bg-[url('@/assets/img/tape.svg')] bg-contain bg-no-repeat"
 
 function ProjectItem({ project }: { project: Project }) {
   const linkClass = "relative rounded border border-border bg-background/70 px-2 py-0.5 transition hover:-translate-y-0.5 hover:rotate-0 hover:shadow"
   return (
     <li className="relative p-5 flex flex-col sm:flex-row gap-5 transition-transform hover:translate-x-1 bg-card/60">
-      <span aria-hidden className="pointer-events-none absolute left-3 top-2 h-6 w-6 bg-[url('/img/pin.svg')] bg-contain bg-no-repeat" />
-      <span aria-hidden className="pointer-events-none absolute right-3 top-2 h-6 w-6 bg-[url('/img/clip.svg')] bg-contain bg-no-repeat" />
+      <span aria-hidden className="pointer-events-none absolute left-3 top-2 h-6 w-6 bg-[url('@/assets/img/pin.svg')] bg-contain bg-no-repeat" />
+      <span aria-hidden className="pointer-events-none absolute right-3 top-2 h-6 w-6 bg-[url('@/assets/img/clip.svg')] bg-contain bg-no-repeat" />
       {project.thumbnail && (
         <img
           src={project.thumbnail}
@@ -78,7 +78,7 @@ export function Projects() {
                 <span
                   aria-hidden
                   className={cn(
-                    "pointer-events-none absolute -right-3 -top-5 h-8 w-8 rotate-12 bg-[url('/img/clip.svg')] bg-contain bg-no-repeat transition-opacity",
+                    "pointer-events-none absolute -right-3 -top-5 h-8 w-8 rotate-12 bg-[url('@/assets/img/clip.svg')] bg-contain bg-no-repeat transition-opacity",
                     open ? "opacity-0" : "opacity-100"
                   )}
                 />

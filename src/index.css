@@ -298,7 +298,7 @@
     radial-gradient(900px 600px at 15% 0%, rgba(255,255,255,.06), transparent 60%),
     radial-gradient(900px 600px at 85% 5%, rgba(255,255,255,.05), transparent 60%),
     radial-gradient(700px 500px at 50% 100%, rgba(255,255,255,.04), transparent 70%),
-    url('/placeholder/paper-texture.svg');
+    url('@/assets/img/paper-texture.svg');
   mix-blend-mode: overlay;
   opacity: .45;
 }
@@ -364,8 +364,8 @@ html.is-scrolling::-webkit-scrollbar-thumb {
   animation: pageFlipPeel 1400ms cubic-bezier(.22,.66,.18,1) forwards;
 }
 .theme-pageflip .face { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 10px 0 6px 10px; box-shadow: 0 8px 18px rgba(0,0,0,.16), inset 0 0 0 1px rgba(0,0,0,.06); will-change: transform, opacity; }
-.theme-pageflip .front { background: linear-gradient(120deg, rgba(0,0,0,.14) 0%, transparent 40%), url('/placeholder/paper-texture.svg'); background-repeat: no-repeat, repeat; background-size: 100% 100%, cover; }
-.theme-pageflip .back { transform: rotateY(180deg); background: linear-gradient(300deg, rgba(0,0,0,.12) 0%, transparent 40%), url('/placeholder/paper-texture.svg'); background-repeat: no-repeat, repeat; background-size: 100% 100%, cover; }
+.theme-pageflip .front { background: linear-gradient(120deg, rgba(0,0,0,.14) 0%, transparent 40%), url('@/assets/img/paper-texture.svg'); background-repeat: no-repeat, repeat; background-size: 100% 100%, cover; }
+.theme-pageflip .back { transform: rotateY(180deg); background: linear-gradient(300deg, rgba(0,0,0,.12) 0%, transparent 40%), url('@/assets/img/paper-texture.svg'); background-repeat: no-repeat, repeat; background-size: 100% 100%, cover; }
 .theme-pageflip .sheet::after { content: ""; position: absolute; inset: 0; background: radial-gradient(80vw 70vh at 100% 0%, rgba(0,0,0,.12), transparent 60%); opacity: .18; pointer-events: none; }
 @keyframes pageFlipPeel {
   0%   { opacity: 0; transform: translateZ(0) rotateY(0deg) translate3d(0,0,0) }
@@ -445,7 +445,7 @@ html.is-scrolling .underline-scribble::after { animation-play-state: paused !imp
 .terminal-glow { text-shadow: 0 0 7px color-mix(in srgb, currentColor 32%, transparent); }
 
 /* ---------------------------------------------------------------- music player (MusicPlayer.tsx)
-   Bagian seek bar yang sudah diputar memakai gradasi sampul album (public/img/album1.svg), sisanya
+   Bagian seek bar yang sudah diputar memakai gradasi sampul album (src/assets/img/album1.svg), sisanya
    abu-abu. --p (persentase) diisi inline dari progres lagu. */
 .seek-fill {
   --seek-from: #b5c0ff;

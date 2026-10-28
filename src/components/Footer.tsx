@@ -1,19 +1,31 @@
+import bread from "@/assets/img/bread2.svg"
+import clouds from "@/assets/img/clouds.svg"
+import coffee from "@/assets/img/coffee2.svg"
+import flower from "@/assets/img/flower3.svg"
+import milk from "@/assets/img/milk.svg"
+import mountain from "@/assets/img/mountain.svg"
+import pencil from "@/assets/img/pencil.svg"
+import photo from "@/assets/img/photo.svg"
+import tapeImage from "@/assets/img/tape.svg"
+import toast from "@/assets/img/toast.svg"
+import tree from "@/assets/img/tree.svg"
 import { PROFILE, SOCIALS } from "@/data"
 import { cn } from "@/lib/utils"
 
-// Gambar dekorasi di latar footer.
+// Gambar dekorasi di latar footer. Gambar kecil seperti ini ikut masuk ke file JS saat build
+// (data URI), jadi tidak butuh request sendiri.
 const DECORATIONS = [
-  ["/img/clouds.svg", "left-6 top-4 h-16 opacity-60"],
-  ["/img/mountain.svg", "right-6 bottom-6 h-20 opacity-60"],
-  ["/img/tree.svg", "left-6 bottom-6 h-16 opacity-70"],
-  ["/img/photo.svg", "right-1/3 top-3 h-16 rotate-2 opacity-90"],
-  ["/img/bread2.svg", "left-1/2 bottom-4 -translate-x-1/2 h-12 -rotate-6 opacity-95"],
-  ["/img/flower3.svg", "right-28 top-6 h-12 rotate-3 opacity-95"],
-  ["/img/milk.svg", "right-1/4 bottom-12 h-12 -rotate-2 opacity-90"],
-  ["/img/coffee2.svg", "left-24 top-8 h-12 opacity-90"],
-  ["/img/toast.svg", "left-10 bottom-10 h-12 rotate-3 opacity-95"],
-  ["/img/pencil.svg", "left-1/3 top-4 h-16 opacity-95"],
-  ["/img/tape.svg", "left-1/2 top-0 -translate-x-1/2 h-8 opacity-70"],
+  [clouds, "left-6 top-4 h-16 opacity-60"],
+  [mountain, "right-6 bottom-6 h-20 opacity-60"],
+  [tree, "left-6 bottom-6 h-16 opacity-70"],
+  [photo, "right-1/3 top-3 h-16 rotate-2 opacity-90"],
+  [bread, "left-1/2 bottom-4 -translate-x-1/2 h-12 -rotate-6 opacity-95"],
+  [flower, "right-28 top-6 h-12 rotate-3 opacity-95"],
+  [milk, "right-1/4 bottom-12 h-12 -rotate-2 opacity-90"],
+  [coffee, "left-24 top-8 h-12 opacity-90"],
+  [toast, "left-10 bottom-10 h-12 rotate-3 opacity-95"],
+  [pencil, "left-1/3 top-4 h-16 opacity-95"],
+  [tapeImage, "left-1/2 top-0 -translate-x-1/2 h-8 opacity-70"],
 ] as const
 
 // Tiap link sosial media ditempel miring dengan selotip di sudut yang berbeda.
@@ -30,7 +42,7 @@ export function Footer() {
     <footer id="social" className="relative border-t border-border bg-transparent">
       <div aria-hidden className="pointer-events-none absolute inset-0 z-0">
         {DECORATIONS.map(([src, position]) => (
-          <img key={src} src={src} className={cn("absolute", position)} alt="" loading="lazy" decoding="async" />
+          <img key={position} src={src} className={cn("absolute", position)} alt="" loading="lazy" decoding="async" />
         ))}
       </div>
       <div className="relative z-10 mx-auto max-w-6xl px-4 py-10">
@@ -52,7 +64,7 @@ export function Footer() {
                 >
                   {/* garis bawah yang memanjang saat hover (.link-grow di index.css) */}
                   <span className="link-grow">{label}</span>
-                  <span className={cn("pointer-events-none absolute h-3 w-8 bg-[url('/img/tape.svg')] bg-contain bg-no-repeat", tape)} />
+                  <span className={cn("pointer-events-none absolute h-3 w-8 bg-[url('@/assets/img/tape.svg')] bg-contain bg-no-repeat", tape)} />
                 </a>
               )
             })}

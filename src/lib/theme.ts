@@ -1,9 +1,9 @@
-import * as React from "react"
+// Tema terang/gelap. Tampilan yang bergantung pada tema memakai kelas .dark lewat CSS (dark:...),
+// tidak membaca state di sini, supaya HTML hasil prerender sama dengan render pertama di browser.
 
 export type Theme = "light" | "dark"
 
 const STORAGE_KEY = "theme"
-const listeners = new Set<() => void>()
 
 // Pilihan tersimpan menang; kalau belum pernah memilih, ikut tema OS.
 // public/theme-init.js melakukan hal yang sama sebelum halaman tampil, supaya tidak ada kedipan putih.
@@ -38,24 +38,12 @@ export function setTheme(theme: Theme) {
   } catch {
     // tidak bisa disimpan: pilihan hanya berlaku sampai halaman ditutup
   }
-  listeners.forEach((listener) => listener())
 }
 
 export function toggleTheme(): Theme {
   const next: Theme = current === "dark" ? "light" : "dark"
   setTheme(next)
   return next
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener)
-  return () => {
-    listeners.delete(listener)
-  }
-}
-
-export function useTheme(): Theme {
-  return React.useSyncExternalStore(subscribe, getTheme)
 }
 
 export function prefersReducedMotion(): boolean {

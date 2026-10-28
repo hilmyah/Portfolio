@@ -76,11 +76,13 @@ A rollback does not touch `/etc/nginx`; copy the older config back yourself if i
 
 ```bash
 curl -s -o /dev/null -D - https://hilmyah.my.id/ | grep -i -E '^(cf-cache-status|age):'
-js=$(curl -s https://hilmyah.my.id/ | grep -o '/assets/index-[^"]*\.js')
+js=$(curl -s https://hilmyah.my.id/ | grep -o '/assets/[^"]*\.js' | head -n1)
 curl -s -o /dev/null -D - -H 'Accept-Encoding: br, gzip' "https://hilmyah.my.id$js" | grep -i '^content-encoding:'
+curl -s https://hilmyah.my.id/ | grep -c '<section id="about"'
 curl -s https://hilmyah.my.id/.well-known/security.txt
 ```
 
 Run the first line twice: the second run shows `cf-cache-status: HIT`. If it stays `DYNAMIC` or
 `BYPASS`, change the rule's Edge TTL to "Ignore cache-control header and use this TTL" with 2 hours
-(the Free plan minimum); deploys purge the HTML anyway. The `content-encoding` line shows `br`.
+(the Free plan minimum); deploys purge the HTML anyway. The `content-encoding` line shows `br`, and
+the `grep -c` line prints `1`: the HTML already contains the page (prerendered at build time).

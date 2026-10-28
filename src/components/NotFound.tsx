@@ -3,7 +3,8 @@ import { PROMPT_HOST, PROMPT_USER } from "@/data"
 
 // URL selain halaman utama dijawab nginx dengan status 404 dan isi halaman ini
 // (server/nginx/portfolio.conf). Komponen ini memberi tahu bahwa alamatnya tidak ada, dengan gaya
-// terminal, di atas portfolio. Di halaman utama tidak dirender sama sekali.
+// terminal, di atas portfolio. URL baru dibaca setelah halaman tersambung (effect): HTML hasil
+// prerender dibuat untuk "/", jadi render pertama di browser juga harus kosong.
 
 const HOME_PATHS = new Set(["/", "/index.html"])
 const MAX_SHOWN = 64
@@ -21,7 +22,9 @@ function missingPath(): string | null {
 }
 
 export function NotFound() {
-  const [path, setPath] = React.useState(missingPath)
+  const [path, setPath] = React.useState<string | null>(null)
+
+  React.useEffect(() => setPath(missingPath()), [])
 
   React.useEffect(() => {
     if (!path) return
