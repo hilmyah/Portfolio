@@ -157,7 +157,7 @@ export function Navbar() {
         >
           {/* Nama link untuk pembaca layar: "Hilmy. Back to top". Teks yang terlihat harus ikut di
               dalam nama itu (WCAG 2.5.3), jadi tidak memakai aria-label. */}
-          <img src="/icons/logo-temp.png" width={28} height={28} alt="" className="h-7 w-7 rounded-sm border border-border bg-card" />
+          <img src="/icons/logo-temp.svg" width={28} height={28} alt="" className="h-7 w-7 rounded-sm border border-border bg-card" />
           Hilmy.<span className="sr-only"> Back to top</span>
         </a>
         <div className="hidden md:flex items-center gap-1">

@@ -37,7 +37,7 @@ export function About() {
             <p className="mt-3 italic">{ABOUT.motto}</p>
             <span aria-hidden className="absolute -right-3 -top-2 h-7 w-7 bg-[url('/img/pixel-heart.svg')] bg-contain bg-no-repeat animate-bob" />
             <span aria-hidden className="absolute right-8 -bottom-3 h-7 w-7 bg-[url('/img/pacman.svg')] bg-contain bg-no-repeat animate-bob" />
-            <span aria-hidden className="absolute -right-5 bottom-5 h-10 w-16 bg-[url('/img/redhood.png')] bg-contain bg-no-repeat animate-drift" />
+            <span aria-hidden className="absolute -right-5 bottom-5 h-10 w-16 bg-[url('/img/redhood.svg')] bg-contain bg-no-repeat animate-drift" />
           </div>
 
           <div className="absolute -top-6 -left-4 rotate-[-3deg] rounded-md border border-yellow-300 bg-yellow-100 px-3 py-2 text-sm shadow text-black">Keep learning • Stay kind</div>
