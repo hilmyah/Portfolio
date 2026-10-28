@@ -1,27 +1,24 @@
 import * as React from "react"
 
-// Foto profil adalah elemen terbesar di layar pertama. Di koneksi lambat, font dan ikon tools yang
-// diunduh bersamaan membuat foto baru tampil sekitar 1 detik lebih lambat, jadi keduanya menunggu
-// foto selesai dulu. Penandanya class html.hero-ready (dipakai index.css untuk font) dan hook
-// useHeroPhotoLoaded() (dipakai About.tsx untuk ikon). Kalau foto tidak kunjung selesai, tunggu
-// paling lama MAX_WAIT_MS.
+// Foto profil adalah elemen terbesar di layar pertama. Di koneksi lambat, 23 ikon tools yang
+// diunduh bersamaan membuat foto tampil lebih lambat, jadi ikon menunggu foto selesai dulu
+// (About.tsx memakai useHeroPhotoLoaded()). Kalau foto tidak kunjung selesai, tunggu paling lama
+// MAX_WAIT_MS.
 const MAX_WAIT_MS = 4000
 
 let loaded = false
 const listeners = new Set<() => void>()
 
-/** Melepas font dan ikon sekarang juga. */
+/** Melepas ikon sekarang juga. */
 export function releaseAfterHeroPhoto() {
   if (loaded) return
   loaded = true
-  document.documentElement.classList.add("hero-ready")
   listeners.forEach((listener) => listener())
 }
 
 /**
- * Dipanggil saat foto selesai diunduh setelah halaman tampil (koneksi lambat). Font dan ikon baru
- * dilepas setelah foto benar-benar tergambar (selesai di-decode, lalu dua frame), supaya pekerjaan
- * tambahan dari mengganti font tidak menunda frame yang menampilkan foto.
+ * Dipanggil saat foto selesai diunduh setelah halaman tampil (koneksi lambat). Ikon baru dilepas
+ * setelah foto benar-benar tergambar (selesai di-decode, lalu dua frame).
  */
 export function heroPhotoLoaded(photo: HTMLImageElement) {
   const afterPaint = () => requestAnimationFrame(() => requestAnimationFrame(releaseAfterHeroPhoto))

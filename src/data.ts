@@ -1,5 +1,7 @@
 // Semua isi portfolio ada di file ini: profil, lagu, tools, project, sosial media dan daftar
 // perintah terminal. Komponen dan terminal hanya membaca dari sini.
+// Ringkasan profil juga ditulis manual di index.html (data terstruktur untuk mesin pencari) dan
+// public/llms.txt (untuk AI); samakan keduanya kalau profil atau project berubah.
 
 export type Profile = {
   name: string

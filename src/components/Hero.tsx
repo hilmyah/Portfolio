@@ -179,7 +179,7 @@ export function Hero() {
   usePauseOffscreen(sectionRef)
 
   // Foto sudah selesai diunduh sebelum halaman tampil (koneksi cepat atau dari cache): ikut tergambar
-  // di frame pertama, jadi font dan ikon bisa langsung dilepas.
+  // di frame pertama, jadi ikon tools bisa langsung dilepas.
   React.useEffect(() => {
     if (photoRef.current?.complete) releaseAfterHeroPhoto()
   }, [])

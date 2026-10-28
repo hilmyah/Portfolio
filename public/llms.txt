@@ -1,0 +1,23 @@
+# Hilmy Adhyandra Hamzah
+
+> Personal portfolio of Hilmy Adhyandra Hamzah, Infrastructure & Systems: Linux, self-hosting, networking and automation. The site is a single page (About, Projects, Terminal, Social), self-hosted on a home server behind a Cloudflare Tunnel.
+
+I build and manage self-hosted infrastructure that is stable, efficient, and practical. I focus on open-source solutions and system management that simplify daily life.
+
+## Profile
+
+- [Portfolio](https://hilmyah.my.id/): about, tools, projects and contact links
+- [GitHub](https://github.com/hilmyah): source code, including this website
+- [LinkedIn](https://www.linkedin.com/in/hilmyah/)
+
+## Projects
+
+- [Bedrock Server](https://github.com/hilmyah/bedrock-server): Minecraft Bedrock server setup for Debian and Ubuntu behind a Playit.gg tunnel, with an installer, a management CLI, automatic updates and a systemd service
+- [Jarchive Infrastructure](https://github.com/siJarchive/jarchive-infrastructure): Docker Compose setup for the Jarchive platform (React and Vite frontend behind Nginx, Node.js and Express backend, MongoDB)
+- [Sijacrypt](https://github.com/hilmyah/sijacrypt): file encryption tool using Ternary Huffman Coding and a ternary stream cipher, implemented in C, Go, Python and Rust
+- [Growmate](https://github.com/hilmyah/Growmate): ESP8266 smart irrigation system with soil moisture sensing, a web dashboard, Blynk integration and OTA updates
+- [Growbot](https://github.com/hilmyah/Growbot): WhatsApp and Telegram gateway for Growmate, built with Node.js and Express
+
+## Optional
+
+- [Website source](https://github.com/hilmyah/Portfolio): React-style components on Preact, TypeScript, Vite and Tailwind CSS

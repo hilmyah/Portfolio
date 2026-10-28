@@ -150,14 +150,15 @@ export function Navbar() {
         <a
           href="#hero"
           className="flex items-center gap-2 font-black tracking-tight text-xl md:text-2xl"
-          aria-label="Go to top"
           onClick={(e) => {
             e.preventDefault()
             scrollToSection("hero")
           }}
         >
-          <img src="/icons/logo-temp.png" width={28} height={28} alt="Hilmy logo" className="h-7 w-7 rounded-sm border border-border bg-card" />
-          Hilmy.
+          {/* Nama link untuk pembaca layar: "Hilmy. Back to top". Teks yang terlihat harus ikut di
+              dalam nama itu (WCAG 2.5.3), jadi tidak memakai aria-label. */}
+          <img src="/icons/logo-temp.png" width={28} height={28} alt="" className="h-7 w-7 rounded-sm border border-border bg-card" />
+          Hilmy.<span className="sr-only"> Back to top</span>
         </a>
         <div className="hidden md:flex items-center gap-1">
           {SECTIONS.map(({ id, label }) => sectionLink(id, label))}
@@ -191,7 +192,7 @@ export function Navbar() {
         <div className="md:hidden border-t border-border bg-background">
           <div className="mx-auto max-w-6xl px-4 py-3 flex flex-col gap-2">
             {SECTIONS.map(({ id, label }) => sectionLink(id, label, true))}
-            <Button variant="outline" onClick={flip} aria-label="Toggle theme" className="mt-2">
+            <Button variant="outline" onClick={flip} className="mt-2">
               {isDark ? "Light" : "Dark"} Mode
             </Button>
           </div>

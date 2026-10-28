@@ -5,14 +5,9 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Font tidak memakai "inline" supaya class font-sans dan font-mono membaca variabel ini, sehingga
-   bisa diganti sementara oleh aturan html:not(.hero-ready) di bawah. */
-@theme {
+@theme inline {
   --font-sans: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-}
-
-@theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -51,7 +46,6 @@
 }
 
 :root {
-  --font-hand: "Patrick Hand", "Kalam", cursive;
   --radius: 10px;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -120,15 +114,6 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
-/* Font web (Inter, Patrick Hand, JetBrains Mono) baru diunduh setelah foto profil selesai dimuat
-   (html.hero-ready, lihat src/lib/heroPhoto.ts). Sebelum itu teks memakai font sistem, sama seperti
-   tampilan saat font masih diunduh. */
-html:not(.hero-ready) {
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  --font-hand: cursive;
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -148,7 +133,7 @@ html:not(.hero-ready) {
 }
 
 @layer utilities {
-  .font-handwriting { font-family: var(--font-hand); }
+  .font-handwriting { font-family: "Patrick Hand", "Kalam", cursive; }
   .paper-shadow { box-shadow: 0 8px 0 rgba(0,0,0,0.04), 0 24px 40px -20px rgba(0,0,0,0.35); }
   .card-shadow { box-shadow: 0 14px 36px -18px rgba(0,0,0,.5), 0 3px 0 rgba(0,0,0,.12); }
   .ghibli-pill {
