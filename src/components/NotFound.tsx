@@ -59,7 +59,7 @@ export function NotFound() {
         </p>
         <p className="break-all text-rose-300">bash: cd: {path}: No such file or directory</p>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="text-neutral-500">This page does not exist. The portfolio is below.</span>
+          <span className="text-neutral-500">Page not found.</span>
           <button
             type="button"
             onClick={goHome}

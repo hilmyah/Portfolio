@@ -226,7 +226,7 @@ async function digInBrowser(args: string[], ctx: CommandContext): Promise<Termin
   }
   if (!HOSTNAME_RE.test(name)) return { lines: [line(`dig: '${name}' is not a valid domain name`, "error")] }
   if (!Object.prototype.hasOwnProperty.call(RECORD_TYPES, type)) return { lines: [line(`dig: record type '${type}' is not supported`, "error")] }
-  if (ignored) ctx.print([line("Server backend not reachable: using DNS over HTTPS from your browser, so @server and most options are ignored.", "muted")])
+  if (ignored) ctx.print([line("Backend unavailable: @server and most options are ignored.", "muted")])
 
   let lastError = ""
   for (const resolver of DOH_RESOLVERS) {
@@ -252,7 +252,7 @@ async function digInBrowser(args: string[], ctx: CommandContext): Promise<Termin
       if (!data.Answer?.length && data.Authority?.length) {
         out.push(blank(), line(";; AUTHORITY:", "muted"), ...recordLines(data.Authority))
       }
-      out.push(blank(), line(`;; resolver: ${resolver.label} (DNS over HTTPS), ${elapsed} ms`, "muted"))
+      out.push(blank(), line(`;; resolver: ${resolver.label}, ${elapsed} ms`, "muted"))
       return { lines: out }
     } catch (error) {
       if (isAbort(error)) return interrupted()
@@ -382,12 +382,12 @@ async function whoisInBrowser(args: string[], ctx: CommandContext): Promise<Term
       } catch {
         // tetap pakai label bawaan
       }
-      return { lines: [...details, blank(), line(`source: ${source} (RDAP summary, fetched by your browser)`, "muted")] }
+      return { lines: [...details, blank(), line(`source: ${source}`, "muted")] }
     } catch (error) {
       if (isAbort(error)) return interrupted()
       return {
         lines: [
-          line("whois: lookup failed (the registry could not be reached from this browser)", "error"),
+          line("whois: lookup failed", "error"),
           line(lastUrl, "muted", lastUrl),
         ],
       }
@@ -396,7 +396,6 @@ async function whoisInBrowser(args: string[], ctx: CommandContext): Promise<Term
   return {
     lines: [
       line(`whois: no record found for ${target}`, "error"),
-      line("The name may be unregistered, or its registry may not publish RDAP data.", "muted"),
     ],
   }
 }
@@ -440,15 +439,12 @@ async function pingInBrowser(args: string[], ctx: CommandContext): Promise<Termi
     if (times.length) {
       const avg = Math.round(times.reduce((a, b) => a + b, 0) / times.length)
       out.push(line(`min/avg/max = ${Math.min(...times)}/${avg}/${Math.max(...times)} ms`))
-    } else if (sent) {
-      out.push(line("No answer over HTTPS. This method only sees hosts that serve HTTPS on port 443; a bare IP address almost never does.", "muted"))
     }
     return out
   }
 
   ctx.print([
     line(`PING ${host} over HTTPS (port 443)`, "accent"),
-    line("Server backend not reachable, so this is measured from your browser with HTTPS HEAD requests, not ICMP.", "muted"),
   ])
 
   try {
@@ -521,7 +517,7 @@ export async function myip(args: string[], ctx: CommandContext): Promise<Termina
     if (isAbort(error)) return interrupted()
   }
   if (!trace.ip || !trace.colo) {
-    return { lines: [line("myip: Cloudflare's /cdn-cgi/trace is not available here (it only exists on the live site)", "error")] }
+    return { lines: [line("myip: not available here", "error")] }
   }
   const colo = trace.colo.toUpperCase()
   const city = COLO_CITIES[colo]
@@ -532,8 +528,7 @@ export async function myip(args: string[], ctx: CommandContext): Promise<Termina
     line(`${pad("cloudflare", 14)}${colo}${city ? ` (${city})` : ""}`),
   ]
   if (protocol) out.push(line(`${pad("protocol", 14)}${protocol}`))
-  if (trace.kex) out.push(line(`${pad("key exchange", 14)}${trace.kex}${/MLKEM/i.test(trace.kex) ? " (post-quantum hybrid)" : ""}`))
-  out.push(blank(), line("Answered by Cloudflare's edge (/cdn-cgi/trace). The request never reaches the server behind this site.", "muted"))
+  if (trace.kex) out.push(line(`${pad("key exchange", 14)}${trace.kex}`))
   return { lines: out }
 }
 
@@ -555,7 +550,7 @@ export function networkCommand(cmd: RemoteCommand) {
     if (!fallback) {
       return {
         lines: [
-          line(`${cmd}: needs the site's server backend, which is not reachable right now${outcome.reason ? ` (${outcome.reason})` : ""}.`, "error"),
+          line(`${cmd}: backend unavailable${outcome.reason ? ` (${outcome.reason})` : ""}`, "error"),
         ],
       }
     }

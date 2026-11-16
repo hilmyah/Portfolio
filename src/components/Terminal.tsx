@@ -6,7 +6,7 @@ import { usePauseOffscreen } from "@/lib/usePauseOffscreen"
 type LoadState = { Window: ComponentType } | "waiting" | "failed"
 
 /**
- * Kode terminal (sekitar 14 KB gzip, ditambah font JetBrains Mono) baru diunduh saat bagian ini
+ * Kode terminal (sekitar 11 KB gzip, ditambah font JetBrains Mono) baru diunduh saat bagian ini
  * hampir terlihat. Saat halaman pertama dibuka, bandwidth dipakai dulu untuk foto profil.
  * Selama menunggu, jendela terminal memang belum terlihat (lihat .terminal-window di index.css),
  * jadi tempatnya cukup diisi kotak kosong setinggi jendela supaya layout tidak bergeser.
@@ -55,10 +55,7 @@ export function Terminal() {
   return (
     <section ref={sectionRef} id="terminal" className="relative mx-auto max-w-6xl scroll-mt-32 px-4 py-16">
       <Reveal>
-        <h2 className="font-black text-2xl md:text-3xl mb-2 underline-scribble inline-block">Terminal</h2>
-        <p className="mb-6 text-sm text-muted-foreground">
-          The same portfolio, through a shell. Type a command, or start with help.
-        </p>
+        <h2 className="font-black text-2xl md:text-3xl mb-6 underline-scribble inline-block">Terminal</h2>
       </Reveal>
       {typeof terminal === "object" ? (
         <terminal.Window />

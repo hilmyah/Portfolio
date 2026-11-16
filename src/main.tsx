@@ -13,7 +13,7 @@ const app = (
 if (typeof window !== "undefined") {
   // bait: pesan untuk yang membuka console browser sambil mencari celah.
   console.log(
-    "%cNice try.%c\nLooking for a way in? There is nothing hidden here, the source is public:\nhttps://github.com/hilmyah/Portfolio",
+    "%cNice try.%c\nhttps://github.com/hilmyah/Portfolio",
     "font: 700 20px ui-monospace, monospace; color: #f5c542",
     "font: 13px ui-monospace, monospace",
   )

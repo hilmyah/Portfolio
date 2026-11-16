@@ -1,6 +1,6 @@
 import * as React from "react"
 import { PROMPT_HOST, PROMPT_USER, SITE_DOMAIN } from "@/data"
-import { WELCOME_LINES, complete, getPromptPath, runCommand } from "@/lib/terminal"
+import { WELCOME_LINES, complete, runCommand } from "@/lib/terminal"
 import type { TerminalLine, Tone } from "@/lib/terminal"
 import { prefersReducedMotion } from "@/lib/theme"
 import { cn } from "@/lib/utils"
@@ -8,8 +8,6 @@ import { cn } from "@/lib/utils"
 type Entry = {
   id: number
   input?: string
-  /** Direktori yang tampil di prompt entri ini, sesuai saat perintahnya dijalankan. */
-  path?: string
   lines: TerminalLine[]
 }
 
@@ -23,21 +21,21 @@ const TONE_CLASS: Record<Tone, string> = {
 
 // Beberapa titik awal saja. Sisanya bisa ditemukan lewat `help`, jadi menambah perintah tidak
 // membuat baris ini makin panjang.
-const SUGGESTIONS = ["help", "clear", "fetch", "ls", `whois ${SITE_DOMAIN}`]
+const SUGGESTIONS = ["help", "clear", `whois ${SITE_DOMAIN}`]
 
 // closed: belum terlihat di layar. opening: jendela terbuka. typing: perintah pembuka mengetik sendiri.
 type Phase = "closed" | "opening" | "typing" | "ready"
 
-const INTRO_COMMAND = "fetch"
+const INTRO_COMMAND = "help"
 const OPEN_DURATION_MS = 1050
 const TYPE_INTERVAL_MS = 85
 
-function Prompt({ path }: { path: string }) {
+function Prompt() {
   return (
     <span className="shrink-0 select-none">
       <span className="text-emerald-300">{PROMPT_USER}@{PROMPT_HOST}</span>
       <span className="text-neutral-500">:</span>
-      <span className="text-sky-300">{path}</span>
+      <span className="text-sky-300">~</span>
       <span className="text-neutral-500">$</span>
     </span>
   )
@@ -103,9 +101,7 @@ export function TerminalWindow() {
     }
 
     // Entri ditambahkan lebih dulu, supaya perintah bisa mencetak progres sebelum selesai.
-    // Path dibaca sekarang, sebelum perintah seperti cd mengubahnya.
-    const path = getPromptPath()
-    setEntries((prev) => [...prev, { id, input: raw, path, lines: [] }])
+    setEntries((prev) => [...prev, { id, input: raw, lines: [] }])
     if (input && record) setHistory((prev) => (prev[prev.length - 1] === input ? prev : [...prev, input]))
     setHistoryIndex(null)
     draft.current = ""
@@ -199,7 +195,7 @@ export function TerminalWindow() {
       if (running.current) {
         running.current.abort()
       } else if (value) {
-        addEntry({ input: `${value}^C`, path: getPromptPath(), lines: [] })
+        addEntry({ input: `${value}^C`, lines: [] })
         setValue("")
         setHistoryIndex(null)
       }
@@ -218,7 +214,7 @@ export function TerminalWindow() {
       const result = complete(value)
       setValue(result.value)
       if (result.candidates.length > 1) {
-        addEntry({ input: value, path: getPromptPath(), lines: [{ text: result.candidates.join("  "), tone: "muted" }] })
+        addEntry({ input: value, lines: [{ text: result.candidates.join("  "), tone: "muted" }] })
       }
     } else if (e.key === "ArrowUp") {
       if (history.length === 0) return
@@ -256,7 +252,7 @@ export function TerminalWindow() {
           <span aria-hidden className="h-3 w-3 rounded-full bg-amber-300/80" />
           <span aria-hidden className="h-3 w-3 rounded-full bg-emerald-400/80" />
           <span className="ml-2 truncate font-mono text-xs text-neutral-400">
-            {PROMPT_USER}@{PROMPT_HOST}: {getPromptPath()}
+            {PROMPT_USER}@{PROMPT_HOST}: ~
           </span>
         </div>
 
@@ -274,7 +270,7 @@ export function TerminalWindow() {
                   <div key={entry.id} className="mb-2">
                     {entry.input !== undefined && (
                       <div className="flex gap-2">
-                        <Prompt path={entry.path ?? "~"} />
+                        <Prompt />
                         <span className="whitespace-pre-wrap break-all text-neutral-100">{entry.input}</span>
                       </div>
                     )}
@@ -287,7 +283,7 @@ export function TerminalWindow() {
 
               {!ready && (
                 <div className="flex items-center gap-2" aria-hidden>
-                  <Prompt path={getPromptPath()} />
+                  <Prompt />
                   <span className="text-neutral-100">
                     {typed}
                     <span className="terminal-cursor" />
@@ -295,7 +291,7 @@ export function TerminalWindow() {
                 </div>
               )}
               <label className={ready ? "flex items-center gap-2" : "hidden"}>
-                {busy ? <span aria-hidden className="terminal-cursor" /> : <Prompt path={getPromptPath()} />}
+                {busy ? <span aria-hidden className="terminal-cursor" /> : <Prompt />}
                 <span className="sr-only">Terminal command</span>
                 <input
                   ref={inputRef}

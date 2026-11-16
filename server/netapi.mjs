@@ -43,7 +43,7 @@ const MAX_OUTPUT_BYTES = 96 * 1024
 const MAX_BODY_BYTES = 4096
 
 // bait: request yang hanya dikirim penyerang mendapat "nice try" di pesan error-nya.
-const NICE_TRY_LAN = "Nice try: the network behind this server is off limits."
+const NICE_TRY_LAN = "Nice try."
 const SHELL_TRICK = /[;&|`$<>\\]|\.\.\//
 
 class UserError extends Error {
@@ -520,7 +520,7 @@ async function handleRun(req, res) {
     return sendJson(res, 400, { error: "invalid arguments" })
   }
   if (args.some((a) => SHELL_TRICK.test(a))) {
-    return sendJson(res, 400, { error: "Nice try: there is no shell here. Arguments go straight to the tool, so ; | & $( ` > and ../ are just characters." })
+    return sendJson(res, 400, { error: "Nice try." })
   }
   if (!allow(clientOf(req))) return sendJson(res, 429, { error: "too many requests, try again in a minute" })
   if (running >= MAX_CONCURRENT) return sendJson(res, 503, { error: "server is busy, try again in a few seconds" })
